@@ -19,3 +19,6 @@ Every person in the Emmersohn family must have parents and a name, be born, and 
 - Each member should have records for at least 10 family members, ensuring consistency in the order of information with the partner.
 - Each member should populate their respective branch with the data of their members.
 - The two branches should be combined into a complete family tree for the final features of the implementation.
+
+### [You can find the spec here](https://github.com/Anth0nyB311/familytree/blob/main/docs/COMP1811_PythonProj_2024-25%20CWSpec%20--.pdf)
+### [You can find the reporting file here](https://github.com/Anth0nyB311/familytree/blob/main/docs/COMP1811_PythonProject_ReportTemplate.docx)
