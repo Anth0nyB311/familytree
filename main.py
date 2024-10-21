@@ -15,5 +15,15 @@ print()
 print("=" * 45)
 finish = False
 while(not finish):
-    userOption = input("Your option:")
-    if ()
+    userOption = int(input("Your option:"))
+    if userOption == 1 :
+        import cli
+        finish = True
+    elif userOption == 2:
+        import gui
+        finish = True
+    elif userOption == 3:
+        exit()
+        finish = True
+    else:
+        print("Sorry, I didn't understand the input.")
