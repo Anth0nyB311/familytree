@@ -1,0 +1,25 @@
+<?xml version="1.0" ?>
+<FamilyTree>
+  <Lineage id="0">
+    <Person id="1">
+      <Name>4</Name>
+      <DOB>David</DOB>
+      <AliveStatus>False</AliveStatus>
+      <Ethnicity>sdfsd</Ethnicity>
+    </Person>
+  </Lineage>
+  <Lineage id="1">
+    <Person id="1">
+      <Name>4</Name>
+      <DOB>efsdf</DOB>
+      <AliveStatus>False</AliveStatus>
+      <Ethnicity>asd</Ethnicity>
+    </Person>
+    <Person id="2">
+      <Name>4</Name>
+      <DOB>gfgasdf</DOB>
+      <AliveStatus>False</AliveStatus>
+      <Ethnicity>ersadf</Ethnicity>
+    </Person>
+  </Lineage>
+</FamilyTree>
