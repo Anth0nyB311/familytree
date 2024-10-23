@@ -22,3 +22,9 @@ Every person in the Emmersohn family must have parents and a name, be born, and 
 
 ### [You can find the spec here](https://github.com/Anth0nyB311/familytree/blob/main/docs/COMP1811_PythonProj_2024-25%20CWSpec%20--.pdf)
 ### [You can find the reporting file here](https://github.com/Anth0nyB311/familytree/blob/main/docs/COMP1811_PythonProject_ReportTemplate.docx)
+
+## How to run this project?
+Please make sure you run this project **from main.py ONLY!** If you attempt to run from another file, you will break the autosave feature!
+
+### Autosave?
+Yes, this program has a autosave feature by saving your heritages to a XMl file. This means that you will never loose your progress!

@@ -1,6 +1,9 @@
 import time, datetime
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
+import tkinter as tk
+from tkinter import ttk,messagebox
+from tkcalendar import DateEntry
 class Lineage:
     def __init__(self):
         self.persons = []
@@ -20,6 +23,14 @@ class Lineage:
             userIn.append(input(qList[i]))
         tempPerson = Person(userIn[0],userIn[1],self._getAliveStatus(userIn[2]),userIn[3])
         self._add_person(tempPerson)
+    
+    def get_noOfPeople(self,n):
+        if n == 1:
+            return 1
+        else:
+            return 2 ** (n - 1)
+
+
     
 # Note for me, in order to use private methods or variables. You must use SELF!
 
