@@ -1,4 +1,4 @@
-import lib
+from lib import Lineage, Person
 import tkinter as tk
 from tkinter import ttk, messagebox
 
@@ -8,6 +8,7 @@ class FamilyTreeGUI:
         self.amountOfPeople = len(lineages)
         self.lineages = lineages
         self.root = None
+        self.tree_canvas = None
 
     def add_person(self, lineage, callback=None):
         # Popup dialog to get person details from user
@@ -43,11 +44,13 @@ class FamilyTreeGUI:
 
             if name and dob and alive and ethnicity:
                 is_alive = alive.lower() in ["yes", "y"]
-                person = lib.Person(name, dob, is_alive, ethnicity)
+                person = Person(name, dob, is_alive, ethnicity)
                 lineage._add_person(person)
                 popup.destroy()
                 if callback:
                     callback()
+                # Update the tree immediately after adding a person
+                self.draw_tree()
             else:
                 messagebox.showwarning("Incomplete Data", "Please fill out all fields.")
 
@@ -60,29 +63,52 @@ class FamilyTreeGUI:
 
     def newMember(self):
         self.amountOfPeople += 1
-        lin = lib.Lineage()
+        lin = Lineage()
         no_of_people = lin.get_noOfPeople(self.amountOfPeople)
         print(f"Amount of People: {self.amountOfPeople}, Number of People to Loop: {no_of_people}")
 
         self.show_popup(lin, no_of_people)
         self.lineages.append(lin)
         self.draw_tree()
-        
 
     def removeMember(self):
         print('Deleter Mode button clicked')
 
     def draw_tree(self):
         # Clear the canvas and redraw the tree based on the current lineages
-        for widget in self.tree_frame.winfo_children():
-            widget.destroy()
+        self.tree_canvas.delete("all")
 
-        y_position = 20
-        for lineage in self.lineages:
-            for person in lineage.persons:
-                person_label = tk.Label(self.tree_frame, text=f"Name: {person.name}, DOB: {person.dob}, Alive: {'Yes' if person.is_alive else 'No'}, Ethnicity: {person.ethnicity}")
-                person_label.pack(anchor='w', pady=2)
-                y_position += 20
+        canvas_width = 800
+        canvas_height = 600
+        x_center = canvas_width // 2
+        y_start = canvas_height - 100
+
+        node_positions = {}
+        level_gap = 100
+        x_gap = 150
+
+        # Draw each lineage as a tree structure
+        for idx, lineage in enumerate(self.lineages):
+            num_people = len(lineage.persons)
+            y_position = y_start - idx * level_gap
+            start_x = x_center - ((num_people - 1) * x_gap) // 2
+
+            for i, person in enumerate(lineage.persons):
+                x_position = start_x + i * x_gap
+                node_positions[person] = (x_position, y_position)
+                self._draw_node(person, x_position, y_position)
+
+                # Draw connection lines between parent and children in the lineage
+                if i > 0:
+                    parent = lineage.persons[(i - 1) // 2]
+                    parent_x, parent_y = node_positions[parent]
+                    self.tree_canvas.create_line(parent_x, parent_y, x_position, y_position, dash=(4, 2))
+
+    def _draw_node(self, person, x, y):
+        # Draw a node (oval with text inside)
+        node_radius = 40
+        self.tree_canvas.create_oval(x - node_radius, y - 20, x + node_radius, y + 20, fill="white", outline="black")
+        self.tree_canvas.create_text(x, y, text=person.name, font=("Arial", 12))
 
     def main_gui(self):
         self.root = tk.Tk()
@@ -101,29 +127,26 @@ class FamilyTreeGUI:
         )
         welcome_label.pack(pady=10)
 
-        tree_canvas = tk.Canvas(
+        self.tree_canvas = tk.Canvas(
             main_frame,
             bg='white',
             highlightthickness=1,
             highlightbackground='black'
         )
-        tree_canvas.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        self.tree_canvas.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
-        scroll_x = tk.Scrollbar(main_frame, orient='horizontal', command=tree_canvas.xview)
+        scroll_x = tk.Scrollbar(main_frame, orient='horizontal', command=self.tree_canvas.xview)
         scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
 
-        scroll_y = tk.Scrollbar(main_frame, orient='vertical', command=tree_canvas.yview)
+        scroll_y = tk.Scrollbar(main_frame, orient='vertical', command=self.tree_canvas.yview)
         scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
 
-        tree_canvas.configure(xscrollcommand=scroll_x.set, yscrollcommand=scroll_y.set)
-
-        self.tree_frame = tk.Frame(tree_canvas, bg='white')
-        tree_canvas.create_window((0, 0), window=self.tree_frame, anchor='nw')
+        self.tree_canvas.configure(xscrollcommand=scroll_x.set, yscrollcommand=scroll_y.set)
 
         def on_frame_configure(event):
-            tree_canvas.configure(scrollregion=tree_canvas.bbox('all'))
+            self.tree_canvas.configure(scrollregion=self.tree_canvas.bbox('all'))
 
-        self.tree_frame.bind('<Configure>', on_frame_configure)
+        self.tree_canvas.bind('<Configure>', on_frame_configure)
 
         button_frame = tk.Frame(main_frame, bg='#F0F8FF')
         button_frame.pack(pady=10)
@@ -146,9 +169,10 @@ class FamilyTreeGUI:
         )
         remove_member_button.pack(side=tk.LEFT, padx=10)
 
+        self.draw_tree()
         self.root.mainloop()
 
 
 if __name__ == "__main__":
-    app = FamilyTreeGUI()
+    app = FamilyTreeGUI([])
     app.main_gui()
