@@ -8,10 +8,10 @@ class mainProgram:
         self.lineages = []
 
     def mainMenu(self, selection):
+        finish = False
         if selection > 0:
             importer = lib.ImExPorter()  
             self.lineages = importer.importProgress(self.foundXmls[selection - 1]) 
-            finish = False
         while not finish:
             clear()
             print("=" * 45)

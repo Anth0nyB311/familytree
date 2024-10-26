@@ -9,33 +9,24 @@ class FamilyTreeGUI:
         self.lineages = lineages
         self.root = None
         self.tree_canvas = None
+        self.nodes = []
 
     def add_person(self, lineage, callback=None):
-        # Popup dialog to get person details from user
         popup = tk.Toplevel(self.root)
         popup.title("Add Family Member")
-
-        # Person name entry
         tk.Label(popup, text="Family Member Name:").grid(row=0, column=0, padx=10, pady=5, sticky="w")
         name_entry = tk.Entry(popup)
         name_entry.grid(row=0, column=1, padx=10, pady=5)
-
-        # Person DOB entry
         tk.Label(popup, text="Family Member DOB (YYYY-MM-DD):").grid(row=1, column=0, padx=10, pady=5, sticky="w")
         dob_entry = tk.Entry(popup)
         dob_entry.grid(row=1, column=1, padx=10, pady=5)
-
-        # Alive status entry
         tk.Label(popup, text="Are they alive? Yes/No:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
         alive_entry = tk.Entry(popup)
         alive_entry.grid(row=2, column=1, padx=10, pady=5)
-
-        # Ethnicity entry
         tk.Label(popup, text="Family Member Ethnicity:").grid(row=3, column=0, padx=10, pady=5, sticky="w")
         ethnicity_entry = tk.Entry(popup)
         ethnicity_entry.grid(row=3, column=1, padx=10, pady=5)
 
-        # Add button to save the person
         def save_person():
             name = name_entry.get()
             dob = dob_entry.get()
@@ -49,7 +40,6 @@ class FamilyTreeGUI:
                 popup.destroy()
                 if callback:
                     callback()
-                # Update the tree immediately after adding a person
                 self.draw_tree()
             else:
                 messagebox.showwarning("Incomplete Data", "Please fill out all fields.")
@@ -74,41 +64,45 @@ class FamilyTreeGUI:
     def removeMember(self):
         print('Deleter Mode button clicked')
 
+    def _draw_node(self, person, x, y):
+        node_radius = 40
+        # Draw the node itself
+        self.tree_canvas.create_oval(x - node_radius, y - 20, x + node_radius, y + 20, fill="white", outline="black")
+        self.tree_canvas.create_text(x, y, text=person.name, font=("Arial", 12))
+        # Store the node's data, including position and initial connection count
+        self.nodes.append({'person': person, 'x': x, 'y': y, 'connections': 0})
+
     def draw_tree(self):
-        # Clear the canvas and redraw the tree based on the current lineages
         self.tree_canvas.delete("all")
+        self.nodes.clear()  # Clear the list of nodes before drawing again
 
         canvas_width = 800
         canvas_height = 600
         x_center = canvas_width // 2
-        y_start = canvas_height - 100
+        y_start = 100
 
-        node_positions = {}
         level_gap = 100
         x_gap = 150
-
-        # Draw each lineage as a tree structure
         for idx, lineage in enumerate(self.lineages):
             num_people = len(lineage.persons)
-            y_position = y_start - idx * level_gap
+            if num_people == 0:
+                continue
+            y_position = y_start + idx * level_gap
             start_x = x_center - ((num_people - 1) * x_gap) // 2
 
             for i, person in enumerate(lineage.persons):
                 x_position = start_x + i * x_gap
-                node_positions[person] = (x_position, y_position)
                 self._draw_node(person, x_position, y_position)
 
-                # Draw connection lines between parent and children in the lineage
-                if i > 0:
-                    parent = lineage.persons[(i - 1) // 2]
-                    parent_x, parent_y = node_positions[parent]
-                    self.tree_canvas.create_line(parent_x, parent_y, x_position, y_position, dash=(4, 2))
+                # Find a suitable parent node to connect to
+                for node in self.nodes:
+                    if node['connections'] < 2:
+                        # Draw a line from the parent node to the current node
+                        self.tree_canvas.create_line(node['x'], node['y'], x_position, y_position, fill="black")
+                        # Increment the number of connections for the parent node
+                        node['connections'] += 1
+                        break
 
-    def _draw_node(self, person, x, y):
-        # Draw a node (oval with text inside)
-        node_radius = 40
-        self.tree_canvas.create_oval(x - node_radius, y - 20, x + node_radius, y + 20, fill="white", outline="black")
-        self.tree_canvas.create_text(x, y, text=person.name, font=("Arial", 12))
 
     def main_gui(self):
         self.root = tk.Tk()
