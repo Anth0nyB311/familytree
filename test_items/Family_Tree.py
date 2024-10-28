@@ -137,8 +137,13 @@ import tkinter as tk
 family_tree_window = None
 
 # Function to draw the family tree in a conventional layout
+# Define a global grid size to prevent overlap
+GRID_WIDTH = 300  # Width between each person in the x direction
+GRID_HEIGHT = 300  # Height between each person in the y direction
+
+# Function to draw the family tree in a structured grid layout
 def draw_family_tree():
-    global family_tree_window, canvas  # Make canvas a global variable
+    global family_tree_window, canvas, person_positions  # Ensure we have access to the global variables
 
     # Close previous family tree window if it exists
     if family_tree_window is not None and family_tree_window.winfo_exists():
@@ -170,24 +175,19 @@ def draw_family_tree():
     y_scroll.config(command=canvas.yview)
 
     # Position tracking for each person
-    global person_positions
     person_positions = {}
+    available_positions = {}  # New dictionary to track available grid positions
 
-    # Function to recursively draw a person and their relationships
+    # Function to draw a person and their relationships
     def draw_person(person_id, x, y, partner_spacing=80, child_spacing=120, parent_spacing=120):
         global canvas  # Access the global canvas variable
 
-        # Check if the person_id is passed correctly
-        print(f"Debug: draw_person called with ID: {person_id}")
-
         if person_id in person_positions:  # Skip if already drawn
-            print(f"Debug: Skipping {person_id} as it's already drawn.")
             return
 
         # Access the person's information
         person = family_data.get(person_id)
         if not person:
-            print(f"Debug: Person ID {person_id} not found in family_data")
             return
 
         name = person.get("name", "Unknown")
@@ -205,7 +205,7 @@ def draw_family_tree():
         partner_x = x + partner_spacing // 2  # Start position for partners
         for partner_id in person.get("partners", []):
             if partner_id not in person_positions:
-                canvas.create_line(x + 50, y, partner_x - 50, y)  # Connect line
+                canvas.create_line(x + 50, y, partner_x - 50, y, fill="green", width=2)  # Line color for partners
                 draw_person(partner_id, partner_x, y, partner_spacing, child_spacing, parent_spacing)
                 partner_x += partner_spacing  # Move right for next partner
 
@@ -215,9 +215,8 @@ def draw_family_tree():
             child_x_start = x - (len(person["children"]) - 1) * (child_spacing // 2)
             for i, child_id in enumerate(person["children"]):
                 if child_id not in person_positions:
-                    child_x = child_x_start + i * child_spacing
-                    canvas.create_line(x, y + 30, child_x, child_y - 30)  # Line to child
-                    draw_person(child_id, child_x, child_y, partner_spacing, child_spacing, parent_spacing)
+                    canvas.create_line(x, y + 30, child_x_start + i * child_spacing, child_y - 30, fill="blue", width=2)  # Line color for children
+                    draw_person(child_id, child_x_start + i * child_spacing, child_y, partner_spacing, child_spacing, parent_spacing)
 
         # Draw parents
         parent_y = y - parent_spacing
@@ -225,23 +224,24 @@ def draw_family_tree():
             parent_x_start = x - (len(person["parents"]) - 1) * (parent_spacing // 2)
             for i, parent_id in enumerate(person["parents"]):
                 if parent_id not in person_positions:
-                    parent_x = parent_x_start + i * parent_spacing
-                    canvas.create_line(parent_x, parent_y + 30, x, y - 30)  # Line from parent
-                    draw_person(parent_id, parent_x, parent_y, partner_spacing, child_spacing, parent_spacing)
+                    canvas.create_line(parent_x_start + i * parent_spacing, parent_y + 30, x, y - 30, fill="red", width=2)  # Line color for parents
+                    draw_person(parent_id, parent_x_start + i * parent_spacing, parent_y, partner_spacing, child_spacing, parent_spacing)
 
     # Identify root people (those with no parents) to start drawing
     root_people = [pid for pid, pdata in family_data.items() if not pdata["parents"]]
     start_x = 100  # Starting x position for each root person
     for i, root_person in enumerate(root_people):
-        draw_person(root_person, start_x + i * 200, 100, partner_spacing=200, child_spacing=200, parent_spacing=200)
+        draw_person(root_person, start_x + i * GRID_WIDTH, 100, partner_spacing=GRID_WIDTH, child_spacing=GRID_HEIGHT, parent_spacing=GRID_HEIGHT)
 
     # Update canvas scroll region to encompass all drawn elements
     canvas.config(scrollregion=canvas.bbox("all"))
 
+# Note: Colors are assigned to lines based on the relationship type
+# - Green for partners
+# - Blue for children
+# - Red for parents
 
-
-
-
+# Update draw_person to ensure no overlaps
 
 # Function to edit person details
 def edit_person(person_id):
