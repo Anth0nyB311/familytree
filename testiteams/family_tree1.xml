@@ -1,0 +1,20 @@
+<family>
+	<person id="1" name="Alice Smith" birth_date="1975-06-15" status="alive">
+		<child_id>2</child_id>
+		<partner_id>3</partner_id>
+	</person>
+	<person id="2" name="Bob Smith" birth_date="2000-02-20" status="alive">
+		<parent_id>1</parent_id>
+		<parent_id>3</parent_id>
+	</person>
+	<person id="3" name="Charlie Smith" birth_date="1972-09-12" status="alive">
+		<child_id>2</child_id>
+		<partner_id>1</partner_id>
+	</person>
+	<person id="4" name="Diana Green" birth_date="1985-04-05" status="alive">
+		<partner_id>5</partner_id>
+	</person>
+	<person id="5" name="Edward Green" birth_date="1982-10-11" status="alive">
+		<partner_id>4</partner_id>
+	</person>
+</family>
