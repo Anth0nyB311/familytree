@@ -243,12 +243,6 @@ def draw_family_tree():
 
 # Update draw_person to ensure no overlaps
 
-
-
-
-
-
-
 # Function to edit person details
 def edit_person(person_id):
     if person_id not in family_data:
