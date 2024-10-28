@@ -81,35 +81,38 @@ def add_person(name, birth_date, alive, relationships):
         messagebox.showerror("Error", "Name and Birth Date cannot be blank.")
         return
 
-    person_id = str(len(family_data) + 1)  # Simple ID generation based on current count
-    family_data[person_id] = {
+    new_person_id = str(len(family_data) + 1)  # Use a new variable for ID generation
+    family_data[new_person_id] = {
         "name": name,
         "birth_date": birth_date,
         "alive": alive,
         "parents": [],
         "children": [],
-        "partners": []  # Initialize partners
+        "partners": []
     }
     
-    print(f"Added Person - ID: {person_id}, Name: {name}, Birth Date: {birth_date}, Status: {'Alive' if alive else 'Deceased'}")  # Debugging print
+    print(f"Added Person - ID: {new_person_id}, Name: {name}, Birth Date: {birth_date}, Status: {'Alive' if alive else 'Deceased'}")  # Debugging print
 
     # Process relationships
     for rel_name, rel_type in relationships:
         print(f"Adding relationship: {rel_name} as {rel_type}")  # Debugging print
-        for person_id, person_info in family_data.items():
+        for existing_person_id, person_info in family_data.items():
             if person_info['name'] == rel_name:
                 if rel_type == "Parent":
-                    family_data[person_id]['children'].append(person_id)
-                    family_data[person_id]['partners'].append(person_id)  # Adjust as necessary
+                    family_data[existing_person_id]['children'].append(new_person_id)  # Update existing person
+                    family_data[new_person_id]['parents'].append(existing_person_id)  # Update new person
                 elif rel_type == "Child":
-                    family_data[person_id]['parents'].append(person_id)
+                    family_data[existing_person_id]['parents'].append(new_person_id)  # Update existing person
+                    family_data[new_person_id]['children'].append(existing_person_id)  # Update new person
                 elif rel_type == "Partner":
-                    family_data[person_id]['partners'].append(person_id)
+                    family_data[existing_person_id]['partners'].append(new_person_id)  # Update existing person
+                    family_data[new_person_id]['partners'].append(existing_person_id)  # Update new person
 
     # Update the Listbox and draw family tree
     update_listbox()
     save_to_xml()
     draw_family_tree()  # Update family tree display
+
 
 # Function to update the Listbox with current family members
 def update_listbox():
@@ -133,8 +136,9 @@ import tkinter as tk
 # Define a global family_tree_window variable
 family_tree_window = None
 
+# Function to draw the family tree in a conventional layout
 def draw_family_tree():
-    global family_tree_window
+    global family_tree_window, canvas  # Make canvas a global variable
 
     # Close previous family tree window if it exists
     if family_tree_window is not None and family_tree_window.winfo_exists():
@@ -166,10 +170,16 @@ def draw_family_tree():
     y_scroll.config(command=canvas.yview)
 
     # Position tracking for each person
+    global person_positions
     person_positions = {}
 
     # Function to recursively draw a person and their relationships
-    def draw_person(person_id, x, y, depth=0):
+    def draw_person(person_id, x, y, partner_spacing=80, child_spacing=120, parent_spacing=120):
+        global canvas  # Access the global canvas variable
+
+        # Check if the person_id is passed correctly
+        print(f"Debug: draw_person called with ID: {person_id}")
+
         if person_id in person_positions:  # Skip if already drawn
             print(f"Debug: Skipping {person_id} as it's already drawn.")
             return
@@ -180,60 +190,56 @@ def draw_family_tree():
             print(f"Debug: Person ID {person_id} not found in family_data")
             return
 
-        name = person["name"]
-        birth_date = person["birth_date"]
-
-        # Display name and birth date within the oval
-        max_text_length = 15  # Max characters before resizing or wrapping
-        font_size = 10  # Default font size
-        if len(name) > max_text_length:
-            font_size = 8  # Smaller font for longer names
-
-        # Debugging output
-        print(f"Debug: Drawing person - ID: {person_id}, Name: {name}, Birth Date: {birth_date}")
+        name = person.get("name", "Unknown")
+        birth_date = person.get("birth_date", "Unknown")
 
         # Draw the person oval and text
         canvas.create_oval(x - 50, y - 30, x + 50, y + 30, fill="lightblue")
-        canvas.create_text(x, y - 10, text=name, font=("Arial", font_size, "bold"))
-        canvas.create_text(x, y + 10, text=f"({birth_date})", font=("Arial", font_size - 1, "italic"))
+        canvas.create_text(x, y - 10, text=name, font=("Arial", 10, "bold"))
+        canvas.create_text(x, y + 10, text=f"({birth_date})", font=("Arial", 9, "italic"))
 
         # Store position to avoid redrawing
         person_positions[person_id] = (x, y)
 
-        # Draw partners next to each other horizontally
-        partner_x = x + 100
-        for partner_id in person["partners"]:
+        # Draw partners
+        partner_x = x + partner_spacing // 2  # Start position for partners
+        for partner_id in person.get("partners", []):
             if partner_id not in person_positions:
                 canvas.create_line(x + 50, y, partner_x - 50, y)  # Connect line
-                draw_person(partner_id, partner_x, y)
-                partner_x += 100
+                draw_person(partner_id, partner_x, y, partner_spacing, child_spacing, parent_spacing)
+                partner_x += partner_spacing  # Move right for next partner
 
-        # Draw children below
-        child_y = y + 80
-        child_x_start = x - (len(person["children"]) - 1) * 50  # Align children
-        for i, child_id in enumerate(person["children"]):
-            if child_id not in person_positions:
-                child_x = child_x_start + i * 100
-                canvas.create_line(x, y + 30, child_x, child_y - 30)  # Line to child
-                draw_person(child_id, child_x, child_y)
+        # Draw children
+        child_y = y + child_spacing
+        if person.get("children"):
+            child_x_start = x - (len(person["children"]) - 1) * (child_spacing // 2)
+            for i, child_id in enumerate(person["children"]):
+                if child_id not in person_positions:
+                    child_x = child_x_start + i * child_spacing
+                    canvas.create_line(x, y + 30, child_x, child_y - 30)  # Line to child
+                    draw_person(child_id, child_x, child_y, partner_spacing, child_spacing, parent_spacing)
 
-        # Draw parents above
-        parent_y = y - 80
-        parent_x_start = x - (len(person["parents"]) - 1) * 50  # Align parents
-        for i, parent_id in enumerate(person["parents"]):
-            if parent_id not in person_positions:
-                parent_x = parent_x_start + i * 100
-                canvas.create_line(parent_x, parent_y + 30, x, y - 30)  # Line from parent
-                draw_person(parent_id, parent_x, parent_y)
+        # Draw parents
+        parent_y = y - parent_spacing
+        if person.get("parents"):
+            parent_x_start = x - (len(person["parents"]) - 1) * (parent_spacing // 2)
+            for i, parent_id in enumerate(person["parents"]):
+                if parent_id not in person_positions:
+                    parent_x = parent_x_start + i * parent_spacing
+                    canvas.create_line(parent_x, parent_y + 30, x, y - 30)  # Line from parent
+                    draw_person(parent_id, parent_x, parent_y, partner_spacing, child_spacing, parent_spacing)
 
-    # Identify root people (those with no parents) to start the drawing process
+    # Identify root people (those with no parents) to start drawing
     root_people = [pid for pid, pdata in family_data.items() if not pdata["parents"]]
     start_x = 100  # Starting x position for each root person
     for i, root_person in enumerate(root_people):
-        draw_person(root_person, start_x + i * 200, 100)  # Adjust position of each root person
+        draw_person(root_person, start_x + i * 200, 100, partner_spacing=200, child_spacing=200, parent_spacing=200)
 
     # Update canvas scroll region to encompass all drawn elements
     canvas.config(scrollregion=canvas.bbox("all"))
+
+
+
 
 
 
