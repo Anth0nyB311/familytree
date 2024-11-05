@@ -8,7 +8,7 @@ class Lineage:
     def __init__(self):
         self.persons = []
 
-    def _getAliveStatus(self, status):
+    def _getalive_status(self, status):
         if status.lower() == "y" or status.lower() == "yes":
             return True
         return False
@@ -21,7 +21,7 @@ class Lineage:
         userIn = [len(qList)]
         for i in range(len(qList)):
             userIn.append(input(qList[i]))
-        tempPerson = Person(userIn[0],userIn[1],self._getAliveStatus(userIn[2]),userIn[3])
+        tempPerson = Person(userIn[0],userIn[1],self._getalive_status(userIn[2]),userIn[3])
         self._add_person(tempPerson)
     
     def get_noOfPeople(self,n):
@@ -52,7 +52,7 @@ class ImExPorter:
                 person_element = ET.SubElement(lineage, "Person", id=str(person_id))  
                 ET.SubElement(person_element, "Name").text = str(person.name)
                 ET.SubElement(person_element, "DOB").text = str(person.dob)
-                ET.SubElement(person_element, "AliveStatus").text = str(person.is_alive)  
+                ET.SubElement(person_element, "alive_status").text = str(person.is_alive)  
                 ET.SubElement(person_element, "Ethnicity").text = str(person.ethnicity)
                 person_id += 1 
         filename = "family_tree_" + datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S') + ".xml"
@@ -74,7 +74,7 @@ class ImExPorter:
                 person = Person(
                     name=person_element.find('Name').text,
                     dob=person_element.find('DOB').text,
-                    is_alive=person_element.find('AliveStatus').text,
+                    is_alive=person_element.find('alive_status').text,
                     ethnicity=person_element.find('Ethnicity').text
                 )
                 lineage._add_person(person)

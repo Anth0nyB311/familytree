@@ -68,18 +68,18 @@ class TestFamilyTree(unittest.TestCase):
     def test_family_tree_add_person(self):
         ft = FamilyTree()
         with patch('builtins.input', side_effect=["", "1980-01-01", "Y", "American"]):
-            ft.personAdder(["John Doe"], Parent)
+            ft.person_adder(["John Doe"], Parent)
         self.assertEqual(len(ft.family), 1)
         self.assertEqual(ft.family[0].name, "John Doe")
 
     def test_get_id(self):
         ft = FamilyTree()
         with patch('builtins.input', side_effect=["", "1980-01-01", "Y", "American"]):
-            ft.personAdder(["John Doe"], Parent)
+            ft.person_adder(["John Doe"], Parent)
         with patch('builtins.input', side_effect=["", "1990-05-05", "Y", "American"]):
-            ft.personAdder(["Jane Doe"], Parent)
-        john_id = ft.getID("John Doe")
-        jane_id = ft.getID("Jane Doe")
+            ft.person_adder(["Jane Doe"], Parent)
+        john_id = ft.get_id("John Doe")
+        jane_id = ft.get_id("Jane Doe")
         self.assertIsNotNone(john_id)
         self.assertIsNotNone(jane_id)
         self.assertNotEqual(john_id, jane_id)
@@ -87,11 +87,11 @@ class TestFamilyTree(unittest.TestCase):
     def test_establish_relationship(self):
         ft = FamilyTree()
         with patch('builtins.input', side_effect=["", "1980-01-01", "Y", "American"]):
-            ft.personAdder(["John Doe"], Parent)
+            ft.person_adder(["John Doe"], Parent)
         with patch('builtins.input', side_effect=["", "1990-05-05", "Y", "American"]):
-            ft.personAdder(["Jane Doe"], Parent)
+            ft.person_adder(["Jane Doe"], Parent)
         with patch('builtins.input', side_effect=["", "2010-07-07", "Y", "American"]):
-            ft.personAdder(["Baby Doe"], Child)
+            ft.person_adder(["Baby Doe"], Child)
         john = ft.family[0]
         jane = ft.family[1]
         baby = ft.family[2]
@@ -105,13 +105,13 @@ class TestFamilyTree(unittest.TestCase):
         self.assertIn(john, baby.parents)
         self.assertIn(jane, baby.parents)
 
-    def test_calculate_average_age(self):
+    def test_calc_avage(self):
         ft = FamilyTree()
         with patch('builtins.input', side_effect=["", "1980-01-01", "Y", "American"]):
-            ft.personAdder(["John Doe"], Parent)
+            ft.person_adder(["John Doe"], Parent)
         with patch('builtins.input', side_effect=["", "1990-01-01", "Y", "American"]):
-            ft.personAdder(["Jane Doe"], Parent)
-        avg_age = ft.calculate_average_age()
+            ft.person_adder(["Jane Doe"], Parent)
+        avg_age = ft.calc_avage()
         self.assertTrue(avg_age > 30)
 
     ## calc av death age not included here because it doesn't want to comply. I can ensure that it works!
@@ -119,11 +119,11 @@ class TestFamilyTree(unittest.TestCase):
     def test_display_parents(self):
         ft = FamilyTree()
         with patch('builtins.input', side_effect=["", "1960-01-01", "Y", "American"]):
-            ft.personAdder(["Parent One"], ParentChild)
+            ft.person_adder(["Parent One"], ParentChild)
         with patch('builtins.input', side_effect=["", "1965-01-01", "Y", "American"]):
-            ft.personAdder(["Parent Two"], ParentChild)
+            ft.person_adder(["Parent Two"], ParentChild)
         with patch('builtins.input', side_effect=["", "1990-01-01", "Y", "American"]):
-            ft.personAdder(["Child One"], Child)
+            ft.person_adder(["Child One"], Child)
         parent1 = ft.family[0]
         parent2 = ft.family[1]
         child = ft.family[2]
@@ -131,19 +131,19 @@ class TestFamilyTree(unittest.TestCase):
         ft.establish_relationship(parent1, child, rel=1)
         ft.establish_relationship(parent2, child, rel=1)
         with patch('builtins.input', return_value=""):
-            ft.displayParents(child)  # Should display Parent One and Parent Two
+            ft.display_parents(child)  # Should display Parent One and Parent Two
 
     def test_display_siblings(self):
         ft = FamilyTree()
         with patch('builtins.input', side_effect=["", "1990-01-01", "Y", "American"]):
-            ft.personAdder(["Child One"], Child)
+            ft.person_adder(["Child One"], Child)
         with patch('builtins.input', side_effect=["", "1992-01-01", "Y", "American"]):
-            ft.personAdder(["Child Two"], Child)
+            ft.person_adder(["Child Two"], Child)
         child1 = ft.family[0]
         child2 = ft.family[1]
         ft.establish_relationship(child1, child2, rel=3)  # Siblings
         with patch('builtins.input', return_value=""):
-            ft.displaySiblings(child1)  # Should display Child Two
+            ft.display_siblings(child1)  # Should display Child Two
 
 if __name__ == '__main__':
    try: 

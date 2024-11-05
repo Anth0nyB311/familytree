@@ -4,7 +4,7 @@
     <Person id="1">
       <Name>4</Name>
       <DOB>David</DOB>
-      <AliveStatus>False</AliveStatus>
+      <alive_status>False</alive_status>
       <Ethnicity>sdfsd</Ethnicity>
     </Person>
   </Lineage>
@@ -12,13 +12,13 @@
     <Person id="1">
       <Name>4</Name>
       <DOB>efsdf</DOB>
-      <AliveStatus>False</AliveStatus>
+      <alive_status>False</alive_status>
       <Ethnicity>asd</Ethnicity>
     </Person>
     <Person id="2">
       <Name>4</Name>
       <DOB>gfgasdf</DOB>
-      <AliveStatus>False</AliveStatus>
+      <alive_status>False</alive_status>
       <Ethnicity>ersadf</Ethnicity>
     </Person>
   </Lineage>

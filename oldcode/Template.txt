@@ -3,7 +3,7 @@
         <Person id="0">
             <Name>David</Name>
             <DOB>1990-10-15</DOB>
-            <AliveStatus>True</AliveStatus>
+            <alive_status>True</alive_status>
             <Ethnicity>White Other</Ethnicity>
         </Person>
     </Heritage>
@@ -11,13 +11,13 @@
         <Person id="0">
             <Name>John</Name>
             <DOB>1970-10-15</DOB>
-            <AliveStatus>True</AliveStatus>
+            <alive_status>True</alive_status>
             <Ethnicity>White Other</Ethnicity>
         </Person>
         <Person id="1">
             <Name>Lima</Name>
             <DOB>1972-10-15</DOB>
-            <AliveStatus>True</AliveStatus>
+            <alive_status>True</alive_status>
             <Ethnicity>White Other</Ethnicity>
         </Person>
     </Heritage>

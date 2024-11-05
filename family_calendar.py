@@ -2,7 +2,8 @@ import curses
 import calendar
 from datetime import datetime
 
-def displayCalendar(family_members):
+
+def display_calendar(family_members):
     important_dates = []
     for person in family_members:
         dob = person.dob
@@ -10,8 +11,9 @@ def displayCalendar(family_members):
             try:
                 dob_date = datetime.strptime(dob, '%Y-%m-%d')
                 death_date = None
-                if person.deathdate and person.deathdate.lower() != 'na':
-                    death_date = datetime.strptime(person.deathdate, '%Y-%m-%d')
+                if person.death_date and person.death_date.lower() != 'na':
+                    death_date = datetime.strptime(
+                        person.death_date, '%Y-%m-%d')
                 important_dates.append({
                     'name': person.name,
                     'month': dob_date.month,
@@ -20,7 +22,7 @@ def displayCalendar(family_members):
                     'death_date': death_date
                 })
             except ValueError:
-                pass  
+                pass
 
     def generate_month_calendar(year, month, birthdays):
         month_cal = calendar.monthcalendar(year, month)
@@ -58,7 +60,7 @@ def displayCalendar(family_members):
         try:
             while True:
                 stdscr.clear()
-                height, width = stdscr.getmaxyx() 
+                height, width = stdscr.getmaxyx()
                 birthdays_in_month = {}
                 for person in important_dates:
                     if person['month'] == current_month:
@@ -68,8 +70,8 @@ def displayCalendar(family_members):
                         today = datetime.today()
                         if person['death_date']:
                             age_at_death = person['death_date'].year - person['dob'].year - (
-                                (person['death_date'].month, person['death_date'].day) < (person['dob'].month, person['dob'].day)
-                            )
+                                (person['death_date'].month, person['death_date'].day) < (
+                                    person['dob'].month, person['dob'].day))
                             birthdays_in_month[day].append({
                                 'name': person['name'],
                                 'age_at_death': age_at_death,
@@ -89,12 +91,13 @@ def displayCalendar(family_members):
                             })
 
                 days_with_birthdays = list(birthdays_in_month.keys())
-                cal_lines = generate_month_calendar(year, current_month, days_with_birthdays)
+                cal_lines = generate_month_calendar(
+                    year, current_month, days_with_birthdays)
 
                 idx = 0
                 for line in cal_lines:
-                    if idx < height - 1:  
-                        stdscr.addstr(idx, 0, line[:width])  
+                    if idx < height - 1:
+                        stdscr.addstr(idx, 0, line[:width])
                     idx += 1
                 idx += 1
                 if idx < height - 1:
@@ -109,15 +112,17 @@ def displayCalendar(family_members):
                             if person['is_alive']:
                                 birthday_line = f"{day}{suffix} {month_name}: {person['name']} Age {person['age']}"
                             else:
-                                death_suffix = get_ordinal_suffix(person['death_date'].day)
+                                death_suffix = get_ordinal_suffix(
+                                    person['death_date'].day)
                                 death_month_name = calendar.month_name[person['death_date'].month]
                                 death_date_str = f"{person['death_date'].day}{death_suffix} {death_month_name} {person['death_date'].year}"
                                 birthday_line = f"{day}{suffix} {month_name}: {person['name']} Age at Death {person['age_at_death']} (Died on the {death_date_str})"
-                            stdscr.addstr(idx, 0, birthday_line[:width])  
+                            stdscr.addstr(idx, 0, birthday_line[:width])
                             idx += 1
 
                 if idx < height - 1:
-                    stdscr.addstr(idx + 1, 0, "Use arrow keys to navigate, 'X' to exit.")
+                    stdscr.addstr(
+                        idx + 1, 0, "Use arrow keys to navigate, 'X' to exit.")
 
                 stdscr.refresh()
                 key = stdscr.getch()
