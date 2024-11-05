@@ -78,11 +78,11 @@ class FamilyTree:
     def mainMenu(self):
 
 
-    def main(self):
+     def main(self):
         self.firstTime();
        
 
     
 if __name__ == "__main__":
-    family_tree = FamilyTree()
-    family_tree.main()
+       family_tree = FamilyTree()
+       family_tree.main()
