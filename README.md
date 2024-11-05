@@ -1,4 +1,4 @@
-# FamilyTree
+# FamilyTree TODO PEP8 AND COMMENTING!
 ### A University Of Greenwich Coursework for the COMP-1811-M01-2024-25 Paradigms of Programming (Greenwich Maritime Campus)
 | Student Name  |   Credit |
 | ------------- | ------------- |
@@ -24,7 +24,10 @@ Every person in the Emmersohn family must have parents and a name, be born, and 
 ### [You can find the reporting file here](https://github.com/Anth0nyB311/familytree/blob/main/docs/COMP1811_PythonProject_ReportTemplate.docx)
 
 ## How to run this project?
-Please make sure you run this project **from main.py ONLY!** If you attempt to run from another file, you will break the autosave feature!
+Please make sure you run this project **from main.py ONLY!** 
 
-### Autosave?
-Yes, this program has a autosave feature by saving your heritages to a XMl file. This means that you will never loose your progress!
+# Ive removed autosave as it will take too much time for no reason...
+
+## If you run Windows, please make sure you do pip-install curses
+
+
