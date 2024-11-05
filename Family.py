@@ -55,7 +55,7 @@ class Child(Person):
         self.siblings = []
 
     def add_person(self, parent):
-        if isinstance(parent, Parent):
+        if isinstance(parent, Parent): # only parents can be added
             if parent not in self.parents:
                 self.parents.append(parent)
                 if self not in parent.children:
@@ -64,7 +64,7 @@ class Child(Person):
             raise TypeError("You can only add a Parent instance!")
 
     def add_sibling(self, sibling):
-        if isinstance(sibling, Child):
+        if isinstance(sibling, Child): # only children can be added
             if sibling not in self.siblings:
                 self.siblings.append(sibling)
                 if self not in sibling.siblings:
@@ -78,7 +78,7 @@ class Partner(Person): # Same as before but now with partners
         super().__init__(name, dob, is_alive, ethnicity, death_date)
         self.partners = []
 
-    def add_person(self, partner):
+    def add_person(self, partner): # only partners can be added
         if isinstance(partner, Partner):
             if partner not in self.partners:
                 self.partners.append(partner)
@@ -88,9 +88,9 @@ class Partner(Person): # Same as before but now with partners
             raise TypeError("You can only add a Partner instance!")
 
 
-class ParentChild(Parent, Child):
+class ParentChild(Parent, Child): # hybrid class of Parent and Child which takes the attributes of both
     def __init__(self, name, dob, is_alive, ethnicity, death_date=None):
-        Person.__init__(self, name, dob, is_alive, ethnicity, death_date)
+        Person.__init__(self, name, dob, is_alive, ethnicity, death_date) 
         self.children = []
         self.partners = []
         self.parents = []
@@ -130,15 +130,15 @@ class ParentChild(Parent, Child):
             raise TypeError("You can only add a Child instance as a sibling!")
 
 
-def convert(instance, new_class):
-    new_instance = new_class(
+def convert(instance, new_class): # takes all the data from one type of variable and converts it to another
+    new_instance = new_class( # everything is transfered over
         name=instance.name,
         dob=instance.dob,
         is_alive=instance.is_alive,
         ethnicity=instance.ethnicity,
         death_date=instance.death_date
     )
-    new_instance.id = instance.id
+    new_instance.id = instance.id #if they have any lists, they are transfered over
     if hasattr(instance, 'children'):
         new_instance.children = instance.children
         for child in new_instance.children:
@@ -160,4 +160,4 @@ def convert(instance, new_class):
             sibling.siblings = [new_instance if s.id ==
                                 instance.id else s for s in sibling.siblings]
 
-    return new_instance
+    return new_instance # this acts like a global function that can be used anywhere in the code
