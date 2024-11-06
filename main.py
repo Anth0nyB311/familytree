@@ -1,16 +1,21 @@
+"""The main file, where the code runs from"""
+
 import re
-import datetime
+from datetime import datetime
 import Family
 import clear
 from family_calendar import display_calendar
 
 
 class FamilyTree:
+    """Main class of code"""
+
     def __init__(self):
         self.family = []  # list of people in the family
-        self.progExit = False
+        self.prog_exit = False
 
     def display_help(self):
+        """Prompts the help option for the user"""
         clear.clear()  # clear the screen
         how_to_use = """
         How to use program -->
@@ -90,19 +95,24 @@ class FamilyTree:
 
         print(how_to_use)  # print the help text
 
-    def parse_command(self, userIn, searchFor):
-        addPattern = rf"{searchFor}\s+(\S+)"  # regex pattern to search for the command
-        comm = re.search(addPattern, userIn)
+    def parse_command(self, user_input, search_for):
+        """Gets the subject of the action (ADD CHILD will return CHILD)"""
+        add_pattern = (
+            rf"{search_for}\s+(\S+)"  # regex pattern to search for the command
+        )
+        comm = re.search(add_pattern, user_input)
         return comm.group(1).upper() if comm else None  # return the command
 
-    def valid_dob(self, date, format="%Y-%m-%d"):
+    def valid_dob(self, date, date_format="%Y-%m-%d"):
+        """Checks if the date given is correct"""
         try:
-            datetime.datetime.strptime(date, format)  # check if the date is valid
+            datetime.strptime(date, date_format)  # check if the date is valid
             return True
         except ValueError:
             return False
 
-    def person_adder(self, names, type):  # add a person to the family
+    def person_adder(self, names, person_type):
+        """CLI prompt to add users to the program"""
         dob = "na"
         alive_status = True
         death_date = None
@@ -117,9 +127,7 @@ class FamilyTree:
                     names = f"{name}".strip()
                     break
         else:
-            print(
-                "Please add more names for this user e.g., their middle and last name. If you have already given all details, leave empty."
-            )
+            print("Add more details to name or leave empty (like middle name):")
             name = input("Name(s):")  # get the name
             names = f"{names[0]} {name}".strip()
 
@@ -142,13 +150,14 @@ class FamilyTree:
             ethnicity = input(f"Enter {names}'s ethnicity:")
             if ethnicity:
                 break
-        person = type(
+        person = person_type(
             names, dob, alive_status, ethnicity, death_date
         )  # create the person
         self.family.append(person)  # add the person to the family
         print(f"Added {names} to the family!")
 
     def get_id(self, name):
+        """Get the ID of a person, sorts out any collisions too"""
         matches = [
             person for person in self.family if name.lower() in person.name.lower()
         ]  # get the id of the person
@@ -170,78 +179,58 @@ class FamilyTree:
                 )
                 if 1 <= selection <= len(matches):
                     return matches[selection - 1].id
-                else:
-                    print("Invalid selection. Please try again.")
             except ValueError:  # if the selection is not valid
                 print("Invalid input. Please enter a number.")
 
-    def add_remove_person(self, add_mode, userIn):  # add or remove a person
+    def add_remove_person(self, add_mode, user_input):
+        """Add or remove a person from the program"""
         pattern = r"'([^']+)'"  # regex pattern to search for the name
-        names = re.findall(pattern, userIn)
-        current_command = "na"
-        if add_mode:
-            current_command = self.parse_command(userIn, "ADD")  # get the command
-        else:
-            current_command = self.parse_command(userIn, "REMOVE")  # get the command
-        if (
-            current_command == "RELATIONSHIP" and len(names) == 2
-        ):  # if the command is relationship
-            id1 = self.get_id(names[0])
-            id2 = self.get_id(names[1])
-            if id1 is None or id2 is None:  # if the person is not found
-                print("One or both persons could not be found.")
-                return
-            per1 = next(
-                (person for person in self.family if person.id == id1), None
-            )  # get the person
-            per2 = next(
-                (person for person in self.family if person.id == id2), None
-            )  # get the person
-            if per1 is None or per2 is None:
-                print("One or both persons could not be found in the family list.")
-                return
-            if add_mode:  # if the mode is add
-                self.establish_relationship(per1, per2)  # establish the relationship
-            else:
-                self.remove_relationship(per1, per2)  # remove the relationship
+        names = re.findall(pattern, user_input)
+        current_command = self.parse_command(
+            user_input, "ADD" if add_mode else "REMOVE"
+        )
+
+        if current_command == "RELATIONSHIP" and len(names) == 2:
+            self.handle_relationship(add_mode, names)
         elif len(names) == 1:
-            if not add_mode:  # if the mode is remove
-                self.person_remover(names)  # remove the person
-            else:
-                if not current_command:  # if the command is not found
-                    print(
-                        f'"{userIn}" isn\'t used correctly. Please type HELP to get started.'
-                    )  # if the command is not valid
             if add_mode:
-                if current_command == "CHILD":
-                    self.person_adder(names, Family.Child)  # add a child
-                elif current_command == "PARENT":
-                    self.person_adder(names, Family.Parent)  # add a parent
-                elif current_command == "PARTNER":
-                    self.person_adder(names, Family.Partner)  # add a partner
-                else:
-                    print(
-                        f'"{userIn}" isn\'t used correctly. Please type HELP to get started.'
-                    )
-                    return
+                self.handle_person_addition(current_command, names)
+            else:
+                self.person_remover(names)
         else:
-            if add_mode:
-                if userIn.upper() == "ADD CHILD":
-                    self.person_adder(None, Family.Child)  # add a child
-                elif userIn.upper() == "ADD PARENT":
-                    self.person_adder(None, Family.Parent)  # add a parent
-                elif userIn.upper() == "ADD PARTNER":
-                    self.person_adder(None, Family.Partner)  # add a partner
-                else:
-                    print(
-                        f'"{userIn}" isn\'t used correctly. Please type HELP to get started.'
-                    )
-            else:
-                print(
-                    f'"{userIn}" isn\'t used correctly. Please type HELP to get started.'
-                )
+            self.handle_invalid_command(user_input)
+
+    def handle_relationship(self, add_mode, names):
+        """Handle the relationship between two people"""
+        id1 = self.get_id(names[0])
+        id2 = self.get_id(names[1])
+        if id1 is None or id2 is None:
+            print("One or both persons could not be found.")
+            return
+        per1 = next((person for person in self.family if person.id == id1), None)
+        per2 = next((person for person in self.family if person.id == id2), None)
+        if add_mode:
+            self.establish_relationship(per1, per2)
+        else:
+            self.remove_relationship(per1, per2)
+
+    def handle_person_addition(self, current_command, names):
+        """Handle the addition of a person to the program"""
+        if current_command == "CHILD":
+            self.person_adder(names, Family.Child)
+        elif current_command == "PARENT":
+            self.person_adder(names, Family.Parent)
+        elif current_command == "PARTNER":
+            self.person_adder(names, Family.Partner)
+        else:
+            print("Invalid command.")
+
+    def handle_invalid_command(self, user_input):
+        """Common error output"""
+        print(f'"{user_input}" isn\'t used correctly. Please type HELP to get started.')
 
     def establish_relationship(self, per1, per2, rel=None):
+        """Establish a relationship between two people. Can also convert person type"""
         original_id_per1 = per1.id
         original_id_per2 = per2.id
         if rel is None:  # if the relationship is not found
@@ -276,7 +265,7 @@ class FamilyTree:
                 print(
                     f"{per1.name} and {per2.name} are now partners"
                 )  # add the partner
-        except TypeError as e:  # if the type is not valid
+        except TypeError:  # if the type is not valid
             if not isinstance(per1, Family.ParentChild):
                 per1 = Family.convert(per1, Family.ParentChild)  # convert the person
                 self.family = [
@@ -295,6 +284,7 @@ class FamilyTree:
             )  # establish the relationship againt with recusrion
 
     def person_remover(self, name):
+        """Remove a person from the program"""
         person_id = self.get_id(name[0])  # get the id of the person
         if person_id is None:
             print(f"{name} does not exist!")
@@ -320,6 +310,7 @@ class FamilyTree:
         print(f"{person.name} has been removed from the family.")
 
     def remove_all_relationships(self, person):  # remove all the relationships
+        """Remove all relationships of a person"""
         class_relationships = {  # the relationships
             Family.Parent: ["partners", "parents", "siblings"],
             Family.Child: ["parents", "siblings"],
@@ -341,6 +332,7 @@ class FamilyTree:
                 )  # remove the relationship
 
     def remove_relationship(self, per1, per2):
+        """Remove a relationship between two people"""
         relationships = []
         if hasattr(per1, "children") and per2 in per1.children:
             relationships.append(f"{per1.name} is the parent of {per2.name}")
@@ -365,8 +357,6 @@ class FamilyTree:
                         choice - 1
                     ]  # get the selected relationship
                     break
-                else:
-                    print("Invalid selection. Please try again.")
             except ValueError:
                 print("Invalid input. Please enter a number.")
 
@@ -401,7 +391,25 @@ class FamilyTree:
         print(f"Removed relationship: {selected_relation}")
 
     def display_everything(self):
-        headers = [  # the headers
+        """Display everything in a formatted table"""
+        headers = self.get_headers()
+        rows = self.get_family_rows()
+        col_widths = [
+            max(len(header), max(len(row[idx]) for row in rows))
+            for idx, header in enumerate(headers)
+        ]
+        row_format = " | ".join(f"{{:<{width}}}" for width in col_widths)
+
+        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
+        print(row_format.format(*headers))
+        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
+        for row in rows:
+            print(row_format.format(*row))
+        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
+
+    def get_headers(self):
+        """Just gets headers back"""
+        return [
             "Name",
             "DOB",
             "Alive Status",
@@ -411,65 +419,26 @@ class FamilyTree:
             "Parents",
             "Siblings",
         ]
+
+    def get_family_rows(self):
+        """Makes the rows"""
         rows = []
         for person in self.family:
-            name = person.name
-            dob = person.dob
-            alive_status = (
-                "Alive" if person.is_alive else f"Deceased ({person.death_date})"
-            )
-            ethnicity = person.ethnicity
-            children = (
-                ", ".join(child.name for child in person.children)
-                if hasattr(person, "children") and person.children  # get the children
-                else ""
-            )
-            partners = (
-                ", ".join(partner.name for partner in person.partners)
-                if hasattr(person, "partners") and person.partners  # get the partners
-                else ""
-            )
-            parents = (
-                ", ".join(parent.name for parent in person.parents)
-                if hasattr(person, "parents") and person.parents  # get the parents
-                else ""
-            )
-            siblings = (
-                ", ".join(sibling.name for sibling in person.siblings)
-                if hasattr(person, "siblings") and person.siblings  # get the siblings
-                else ""
-            )
-
-            rows.append(
-                [
-                    name,
-                    dob,
-                    alive_status,
-                    ethnicity,
-                    children,
-                    partners,
-                    parents,
-                    siblings,
-                ]
-            )  # add the rows
-
-        col_widths = [len(header) for header in headers]
-        for row in rows:
-            for idx, item in enumerate(row):
-                col_widths[idx] = max(col_widths[idx], len(item))  # get the width
-
-        row_format = " | ".join(
-            f"{{:<{width}}}" for width in col_widths
-        )  # get the format
-
-        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))  # print the rows
-        print(row_format.format(*headers))
-        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
-        for row in rows:
-            print(row_format.format(*row))
-        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
+            row = [
+                person.name,
+                person.dob,
+                "Alive" if person.is_alive else f"Deceased ({person.death_date})",
+                person.ethnicity,
+                ", ".join(child.name for child in getattr(person, "children", [])),
+                ", ".join(partner.name for partner in getattr(person, "partners", [])),
+                ", ".join(parent.name for parent in getattr(person, "parents", [])),
+                ", ".join(sibling.name for sibling in getattr(person, "siblings", [])),
+            ]
+            rows.append(row)
+        return rows
 
     def get_relationships(self, relationship, name):
+        """Get the relationships between person"""
         person_id = self.get_id(name)  # get the id of the person
         if person_id is None:
             print(f"{name} does not exist!")
@@ -495,26 +464,36 @@ class FamilyTree:
         else:
             print(f'"{relationship}" is not a recognized relationship.')
 
-    def get_command(self, userIn):
+    def get_command(self, user_input):
+        """Get the command from the user"""
         pattern = r"'([^']+)'"  # get the name
-        names = re.findall(pattern, userIn)
-        current_command = self.parse_command(userIn, "GET")
+        names = re.findall(pattern, user_input)
+        current_command = self.parse_command(user_input, "GET")
         if current_command == "CALENDAR":
             display_calendar(self.family)  # display the calendar
         elif current_command == "ALLBIRTHDAYS":
-            for i in range(len(self.family)):
-                print(
-                    f"{self.family[i].name} has the birthday of {self.family[i].dob}"
-                )  # print the birthdays
+            for member in enumerate(self.family):
+                print(f"{member.name} has the birthday of {member.dob}")
         elif current_command == "SORTBIRTHDAYS":
+            # Sort birthdays ignoring the year of birth
             sorted_family = sorted(
                 self.family,
-                key=lambda member: datetime.strptime(member.dob, "%Y-%m-%d"),
-            )  # sort the birthdays
+                key=lambda member: (
+                    member.dob[5:],
+                    member.dob[:4],
+                ),  # ignore the year for sorting
+            )
+            # create a dictionary to store birthdays by month and day only
+            birthday_calendar = {}
             for member in sorted_family:
-                print(
-                    f"{member.name} has the birthday of {member.dob}"
-                )  # print the birthdays
+                birthday_key = member.dob[5:]  # only use MM-DD for the calendar key
+                if birthday_key not in birthday_calendar:
+                    birthday_calendar[birthday_key] = []
+                birthday_calendar[birthday_key].append(member.name)
+            # display the birthday calendar
+            for date, names in birthday_calendar.items():
+                names_list = ", ".join(names)
+                print(f"{date}: {names_list}")
         elif current_command == "AVAGE":
             avg_age = self.calc_avage()  # get the average age
             if avg_age is not None:
@@ -529,14 +508,14 @@ class FamilyTree:
             avg_death_age = self.calc_davage()  # get the average death age
             if avg_death_age is not None:
                 print(
-                    f"The average age at death of deceased family members is {avg_death_age:.2f} years."
+                    f"Average age at death is {avg_death_age:.2f} years."
                 )  # print the average death age
             else:
                 print("No deceased family members with valid dates of birth and death.")
         elif current_command == "INDIVCHILDCOUNT" and names:
-            self.get_IndivCC(names[0])  # get the individual child count
+            self.get_indiv_cc(names[0])  # get the individual child count
         elif current_command == "ACPP":
-            self.calc_ACPP()  # get the average child per person
+            self.calc_acpp()  # get the average child per person
         elif current_command == "EVERYTHING":
             self.display_everything()  # display everything
         elif (
@@ -553,9 +532,12 @@ class FamilyTree:
         ):
             self.get_relationships(current_command, names[0])  # get the relationships
         else:
-            print(f'"{userIn}" isn\'t used correctly. Please type HELP to get started.')
+            print(
+                f'"{user_input}" isn\'t used correctly. Please type HELP to get started.'
+            )
 
     def display_parents(self, person):
+        """Display the parents of a person"""
         if hasattr(person, "parents") and person.parents:  # get the parents
             print(f"Parents of {person.name}:")
             for parent in person.parents:  # print the parents
@@ -564,6 +546,7 @@ class FamilyTree:
             print(f"{person.name} has no parents recorded.")
 
     def display_grandparents(self, person):
+        """Display the grandparents of a person"""
         grandparents = []
         if hasattr(person, "parents") and person.parents:  # get the grandparents
             for parent in person.parents:
@@ -577,6 +560,7 @@ class FamilyTree:
             print(f"{person.name} has no grandparents recorded.")
 
     def display_siblings(self, person):
+        """Display the siblings of a person"""
         if hasattr(person, "siblings") and person.siblings:  # get the siblings
             print(f"Siblings of {person.name}:")
             for sibling in person.siblings:
@@ -585,6 +569,7 @@ class FamilyTree:
             print(f"{person.name} has no siblings recorded.")
 
     def display_cousins(self, person):
+        """Display the cousins of a person"""
         cousins = []
         if hasattr(person, "parents") and person.parents:  # get the cousins
             for parent in person.parents:
@@ -600,25 +585,23 @@ class FamilyTree:
             print(f"{person.name} has no cousins recorded.")
 
     def calc_avage(self):
-        from datetime import datetime
-
-        today = datetime.today()  # get the date
+        """Calculate the average age of the family"""
+        today = datetime.datetime.today()  # get the date
         ages = []
         for member in self.family:
-            if member.is_alive:  # get the age
+            if member.is_alive:
                 try:
-                    dob = datetime.strptime(member.dob, "%Y-%m-%d")
-                    age = (today - dob).days / 365.25  # get the age in years
+                    dob = datetime.datetime.strptime(member.dob, "%Y-%m-%d")
+                    age = (today - dob).days / 365.25
                     ages.append(age)
-                except Exception:
+                except ValueError:
                     continue
         if ages:
-            average_age = sum(ages) / len(ages)
-            return average_age  # return the average age
-        else:
-            return None
+            return sum(ages) / len(ages)
+        return None
 
-    def get_IndivCC(self, name):
+    def get_indiv_cc(self, name):
+        """Get the individual child count"""
         person_id = self.get_id(name)  # get the id of the person
         if person_id is None:
             print(f"{name} does not exist!")
@@ -637,7 +620,8 @@ class FamilyTree:
         else:
             print(f"{person.name} has no children.")
 
-    def calc_ACPP(self):
+    def calc_acpp(self):
+        """Calculate the average child per person"""
         total_children = 0
         parent_count = 0
         for member in self.family:  # get the average child per person
@@ -653,7 +637,7 @@ class FamilyTree:
             print("No parents with children found in the family.")
 
     def calc_davage(self):
-        from datetime import datetime
+        """Calculate the average death age of the family"""
 
         death_ages = []
         for member in self.family:  # get the average death age
@@ -665,17 +649,17 @@ class FamilyTree:
                         death_date - dob
                     ).days / 365.25  # get the age at death in years
                     death_ages.append(age_at_death)
-                except Exception:
+                except ValueError:
                     continue
         if death_ages:
             average_death_age = sum(death_ages) / len(
                 death_ages
             )  # get the average death age
             return average_death_age
-        else:
-            return None
+        return None
 
     def display_immediate(self, person):
+        """Display the immediate family of a person"""
         immediate_family = set()
         if hasattr(person, "partners") and person.partners:  # get the immediate family
             immediate_family.update(person.partners)
@@ -693,6 +677,7 @@ class FamilyTree:
             print(f"{person.name} has no immediate family recorded.")
 
     def display_extended(self, person):
+        """Display the extended family of a person"""
         extended_family = set()
         grandparents = []
         if hasattr(person, "parents") and person.parents:
@@ -741,25 +726,28 @@ class FamilyTree:
             print(f"{person.name} has no extended family recorded.")
 
     def main(self):
+        """Main function of the code"""
         print("Welcome to Family Tree CLI! Type HELP to get started!")
         print()
-        while not self.progExit:
-            userIn = input(">>")
-            if userIn.upper().startswith("HELP"):
+        while not self.prog_exit:
+            user_input = input(">>")
+            if user_input.upper().startswith("HELP"):
                 self.display_help()
-            elif userIn.upper().startswith("CLEAR") or userIn.upper().startswith("CLS"):
+            elif user_input.upper().startswith(
+                "CLEAR"
+            ) or user_input.upper().startswith("CLS"):
                 clear.clear()
-            elif userIn.upper().startswith("EXIT"):
-                self.progExit = True
-            elif userIn.upper().startswith("ADD"):
-                self.add_remove_person(True, userIn)
-            elif userIn.upper().startswith("REMOVE"):
-                self.add_remove_person(False, userIn)
-            elif userIn.upper().startswith("GET"):
-                self.get_command(userIn)
+            elif user_input.upper().startswith("EXIT"):
+                self.prog_exit = True
+            elif user_input.upper().startswith("ADD"):
+                self.add_remove_person(True, user_input)
+            elif user_input.upper().startswith("REMOVE"):
+                self.add_remove_person(False, user_input)
+            elif user_input.upper().startswith("GET"):
+                self.get_command(user_input)
             else:
                 print(
-                    f'"{userIn}" is not a valid command. Please type HELP if you are stuck.'
+                    f'"{user_input}" is not a valid command. Please type HELP if you are stuck.'
                 )
 
 

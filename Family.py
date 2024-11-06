@@ -1,7 +1,9 @@
+"""Family class blueprint"""
 from abc import ABC, abstractmethod  # allows us to make abstract classes and methods
 
 
 class Person(ABC):
+    """base class"""
     _id_counter = 1
 
     def __init__(
@@ -13,15 +15,20 @@ class Person(ABC):
         self.dob = dob
         self.is_alive = is_alive
         self.ethnicity = ethnicity
-        self.death_date = death_date  # Not needed to be passed in, if the person is alive, this will be None
+        self.death_date = death_date  
+        # Not needed to be passed in, if the person is alive, this will be None
 
     @abstractmethod
     def add_person(self, person):  # abstract method to add a relationship to a person
         pass
 
     def __str__(self):  # debugging purposes only
-        alive_status = "Alive" if self.is_alive else f"Deceased ({self.death_date})"
-        return f"ID: {self.id}, Name: {self.name}, DOB: {self.dob}, Status: {alive_status}, Ethnicity: {self.ethnicity}"
+        alive_status = "Alive" if self.is_alive else f"Died ({self.death_date})"
+        return (
+        f"ID: {self.id}, Name: {self.name}, DOB: {self.dob}, "
+        f"Status: {alive_status}, Eth: {self.ethnicity}"
+      )
+
 
 
 class Parent(Person):
@@ -36,7 +43,8 @@ class Parent(Person):
 
     def add_person(
         self, child
-    ):  # add a child to the parent and makes sure only a child can be added
+    ):  
+        """add a child to the parent and makes sure only a child can be added"""
         if isinstance(child, Child):
             if child not in self.children:
                 self.children.append(child)
@@ -47,7 +55,8 @@ class Parent(Person):
 
     def add_partner(
         self, partner
-    ):  # add a partner to the parent and makes sure only a parent  can be added
+    ):  
+        """add a partner to the parent and makes sure only a parent  can be added"""
         if isinstance(partner, Parent):
             if partner not in self.partners:
                 self.partners.append(partner)
@@ -55,18 +64,19 @@ class Parent(Person):
                     partner.partners.append(self)
         else:
             raise TypeError("You can only add a Parent instance as a partner!")
-        # You might ask yourself, why didn't you add a Partner inside add_partner? Because the code will convert the person into a ParentChild instance as mostly in real life, a partner is a parent as well.
 
 
 class Child(Person):
     def __init__(
         self, name, dob, is_alive, ethnicity, death_date=None
-    ):  # same as parent but with siblings and now as a child
+    ): 
+        """same as parent but with siblings and now as a child"""
         super().__init__(name, dob, is_alive, ethnicity, death_date)
         self.parents = []
         self.siblings = []
 
     def add_person(self, parent):
+        """adding the parent"""
         if isinstance(parent, Parent):  # only parents can be added
             if parent not in self.parents:
                 self.parents.append(parent)
@@ -76,6 +86,7 @@ class Child(Person):
             raise TypeError("You can only add a Parent instance!")
 
     def add_sibling(self, sibling):
+        """adding the sibling"""
         if isinstance(sibling, Child):  # only children can be added
             if sibling not in self.siblings:
                 self.siblings.append(sibling)
@@ -87,10 +98,12 @@ class Child(Person):
 
 class Partner(Person):  # Same as before but now with partners
     def __init__(self, name, dob, is_alive, ethnicity, death_date=None):
+        """Defining the partner"""
         super().__init__(name, dob, is_alive, ethnicity, death_date)
         self.partners = []
 
     def add_person(self, partner):  # only partners can be added
+        """add partner to other partner"""
         if isinstance(partner, Partner):
             if partner not in self.partners:
                 self.partners.append(partner)
@@ -104,6 +117,7 @@ class ParentChild(
     Parent, Child
 ):  # hybrid class of Parent and Child which takes the attributes of both
     def __init__(self, name, dob, is_alive, ethnicity, death_date=None):
+        """defining this hybrid"""
         Person.__init__(self, name, dob, is_alive, ethnicity, death_date)
         self.children = []
         self.partners = []
@@ -111,6 +125,7 @@ class ParentChild(
         self.siblings = []
 
     def add_person(self, person):
+        """adding someone to the hybrid"""
         if isinstance(person, Child):
             if person not in self.children:
                 self.children.append(person)
@@ -125,6 +140,7 @@ class ParentChild(
             raise TypeError("You can only add a Parent or Child instance!")
 
     def add_partner(self, partner):
+        """adding a partner to this person"""
         if isinstance(partner, (Parent, ParentChild)):
             if partner not in self.partners:
                 self.partners.append(partner)
@@ -136,6 +152,7 @@ class ParentChild(
             )
 
     def add_sibling(self, sibling):
+        """adding a sibling to this person"""
         if isinstance(sibling, Child):
             if sibling not in self.siblings:
                 self.siblings.append(sibling)
@@ -147,7 +164,8 @@ class ParentChild(
 
 def convert(
     instance, new_class
-):  # takes all the data from one type of variable and converts it to another
+): 
+    """takes all the data from one type of variable and converts it to another"""
     new_instance = new_class(  # everything is transfered over
         name=instance.name,
         dob=instance.dob,
