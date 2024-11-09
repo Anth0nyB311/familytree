@@ -1,7 +1,9 @@
 """Family calendar"""
+
 import curses
 import calendar
 from datetime import datetime
+
 
 def generate_month_calendar(year, month, birthdays):
     """Get the correct day and month format"""
@@ -26,11 +28,13 @@ def generate_month_calendar(year, month, birthdays):
         lines.append(week_str.rstrip())
     return lines
 
+
 def get_ordinal_suffix(day):
     """Get the suffix for the day so first day will be 1st and the second day will be 2nd."""
     if 11 <= day <= 13:
         return "th"
     return {1: "st", 2: "nd", 3: "rd"}.get(day % 10, "th")
+
 
 def get_birthdays_in_month(important_dates, current_month, current_year):
     """Process important_dates to get birthdays in the current month."""
@@ -50,13 +54,15 @@ def get_birthdays_in_month(important_dates, current_month, current_year):
                         < (person["dob"].month, person["dob"].day)
                     )
                 )
-                birthdays_in_month[day].append({
-                    "name": person["name"],
-                    "age_at_death": age_at_death,
-                    "death_date": person["death_date"],
-                    "dob": person["dob"],
-                    "is_alive": False,
-                })
+                birthdays_in_month[day].append(
+                    {
+                        "name": person["name"],
+                        "age_at_death": age_at_death,
+                        "death_date": person["death_date"],
+                        "dob": person["dob"],
+                        "is_alive": False,
+                    }
+                )
             else:
                 age = (
                     current_date.year
@@ -66,13 +72,16 @@ def get_birthdays_in_month(important_dates, current_month, current_year):
                         < (person["dob"].month, person["dob"].day)
                     )
                 )
-                birthdays_in_month[day].append({
-                    "name": person["name"],
-                    "age": age,
-                    "dob": person["dob"],
-                    "is_alive": True,
-                })
+                birthdays_in_month[day].append(
+                    {
+                        "name": person["name"],
+                        "age": age,
+                        "dob": person["dob"],
+                        "is_alive": True,
+                    }
+                )
     return birthdays_in_month
+
 
 def format_birthday_line(day, person, current_month):
     """Format the birthday line for display."""
@@ -80,8 +89,7 @@ def format_birthday_line(day, person, current_month):
     month_name = calendar.month_name[current_month]
     if person["is_alive"]:
         birthday_line = (
-            f"{day}{suffix} {month_name}: {person['name']} "
-            f"Age {person['age']}"
+            f"{day}{suffix} {month_name}: {person['name']} " f"Age {person['age']}"
         )
     else:
         death_suffix = get_ordinal_suffix(person["death_date"].day)
@@ -96,6 +104,7 @@ def format_birthday_line(day, person, current_month):
             f"(Died on the {death_date_str})"
         )
     return birthday_line
+
 
 def handle_user_input(key, current_month, year):
     """Handles user input for navigation."""
@@ -112,6 +121,7 @@ def handle_user_input(key, current_month, year):
     elif key in (ord("x"), ord("X")):
         return False, current_month, year  # Signal to exit
     return True, current_month, year
+
 
 def render_calendar(stdscr, cal_lines, birthdays_in_month, current_month):
     """Renders the calendar and birthdays to the screen."""
@@ -137,6 +147,7 @@ def render_calendar(stdscr, cal_lines, birthdays_in_month, current_month):
     if idx < height - 1:
         stdscr.addstr(idx + 1, 0, "Use arrow keys to navigate, 'X' to exit.")
 
+
 def display_calendar(family_members):
     """Display the family calendar."""
     important_dates = []
@@ -147,9 +158,7 @@ def display_calendar(family_members):
                 dob_date = datetime.strptime(dob, "%Y-%m-%d")
                 death_date = None
                 if person.death_date and person.death_date.lower() != "na":
-                    death_date = datetime.strptime(
-                        person.death_date, "%Y-%m-%d"
-                    )
+                    death_date = datetime.strptime(person.death_date, "%Y-%m-%d")
                 important_dates.append(
                     {
                         "name": person.name,
@@ -179,9 +188,7 @@ def display_calendar(family_members):
                     year, current_month, days_with_birthdays
                 )
 
-                render_calendar(
-                    stdscr, cal_lines, birthdays_in_month, current_month
-                )
+                render_calendar(stdscr, cal_lines, birthdays_in_month, current_month)
 
                 stdscr.refresh()
                 key = stdscr.getch()

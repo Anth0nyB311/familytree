@@ -137,10 +137,7 @@ class FamilyTree:
             if self.valid_dob(dob, "%Y-%m-%d"):  # check if the date is valid
                 break
         alive = input(f"Is {names} alive? Y/N:")
-        if alive.upper() == "Y":
-            alive_status = True
-        else:
-            alive_status = False
+        alive_status = alive.upper() == "Y"
         while True:
             ethnicity = input(f"Enter {names}'s ethnicity:")
             if ethnicity:
