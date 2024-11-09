@@ -12,6 +12,7 @@ class FamilyTree:
 
     def __init__(self):
         self.family = []  # list of people in the family
+        self.stats = FamilyTreeStatistics(self.family)
         self.prog_exit = False
 
     def display_help(self):
@@ -156,32 +157,6 @@ class FamilyTree:
         self.family.append(person)  # add the person to the family
         print(f"Added {names} to the family!")
 
-    def get_id(self, name):
-        """Get the ID of a person, sorts out any collisions too"""
-        matches = [
-            person for person in self.family if name.lower() in person.name.lower()
-        ]  # get the id of the person
-        if not matches:
-            print(f"Couldn't find '{name}'.")  # if the person is not found
-            return None
-
-        if len(matches) == 1:  # if the person is found
-            return matches[0].id
-        while True:
-            print(
-                f'There are multiple people matching "{name}":'
-            )  # if there are multiple people with the same name
-            for i, person in enumerate(matches, start=1):
-                print(f"{i}: {person.name} (ID: {person.id})")  # print the people
-            try:
-                selection = int(  # get the selection
-                    input(f'Please select which "{name}" you want (enter the number): ')
-                )
-                if 1 <= selection <= len(matches):
-                    return matches[selection - 1].id
-            except ValueError:  # if the selection is not valid
-                print("Invalid input. Please enter a number.")
-
     def add_remove_person(self, add_mode, user_input):
         """Add or remove a person from the program"""
         pattern = r"'([^']+)'"  # regex pattern to search for the name
@@ -198,12 +173,12 @@ class FamilyTree:
             else:
                 self.person_remover(names)
         else:
-            self.handle_invalid_command(user_input)
+            self.__invalid_usage(user_input)
 
     def handle_relationship(self, add_mode, names):
         """Handle the relationship between two people"""
-        id1 = self.get_id(names[0])
-        id2 = self.get_id(names[1])
+        id1 = self.stats.get_id(names[0])
+        id2 = self.stats.get_id(names[1])
         if id1 is None or id2 is None:
             print("One or both persons could not be found.")
             return
@@ -223,11 +198,7 @@ class FamilyTree:
         elif current_command == "PARTNER":
             self.person_adder(names, Family.Partner)
         else:
-            print("Invalid command.")
-
-    def handle_invalid_command(self, user_input):
-        """Common error output"""
-        print(f'"{user_input}" isn\'t used correctly. Please type HELP to get started.')
+            self.__invalid_usage(current_command)
 
     def establish_relationship(self, per1, per2, rel=None):
         """Establish a relationship between two people. Can also convert person type"""
@@ -285,7 +256,7 @@ class FamilyTree:
 
     def person_remover(self, name):
         """Remove a person from the program"""
-        person_id = self.get_id(name[0])  # get the id of the person
+        person_id = self.stats.get_id(name[0])  # get the id of the person
         if person_id is None:
             print(f"{name} does not exist!")
             return
@@ -333,62 +304,88 @@ class FamilyTree:
 
     def remove_relationship(self, per1, per2):
         """Remove a relationship between two people"""
-        relationships = []
-        if hasattr(per1, "children") and per2 in per1.children:
-            relationships.append(f"{per1.name} is the parent of {per2.name}")
-        if hasattr(per2, "children") and per1 in per2.children:
-            relationships.append(f"{per2.name} is the parent of {per1.name}")
-        if hasattr(per1, "siblings") and per2 in per1.siblings:
-            relationships.append(f"{per1.name} and {per2.name} are siblings")
-        if hasattr(per1, "partners") and per2 in per1.partners:
-            relationships.append(f"{per1.name} and {per2.name} are partners")
+        relationships = self.get_existing_relationships(per1, per2)
         if not relationships:
             print(f"No relationships found between {per1.name} and {per2.name}.")
             return
-        print("Please choose which relationship you want to remove:")
-        for idx, relation in enumerate(relationships, start=1):  # get the relationships
-            print(f"{idx}) {relation}")
 
+        print("Please choose which relationship you want to remove:")
+        for idx, relation in enumerate(relationships, start=1):
+            print(f"{idx}) {relation['description']}")
+
+        selected_relation = self.__select_relationship(relationships)
+
+        # Call the appropriate function to remove the relationship
+        selected_relation["remove_func"](per1, per2)
+        print(f"Removed relationship: {selected_relation['description']}")
+
+    def get_existing_relationships(self, per1, per2):
+        """Get a list of existing relationships between two people"""
+        relationships = []
+        if hasattr(per1, "children") and per2 in per1.children:
+            relationships.append(
+                {
+                    "description": f"{per1.name} is the parent of {per2.name}",
+                    "remove_func": self.__remove_parent_child_relationship,
+                }
+            )
+        if hasattr(per2, "children") and per1 in per2.children:
+            relationships.append(
+                {
+                    "description": f"{per2.name} is the parent of {per1.name}",
+                    "remove_func": self.__remove_parent_child_relationship,
+                }
+            )
+        if hasattr(per1, "siblings") and per2 in per1.siblings:
+            relationships.append(
+                {
+                    "description": f"{per1.name} and {per2.name} are siblings",
+                    "remove_func": self.__remove_sibling_relationship,
+                }
+            )
+        if hasattr(per1, "partners") and per2 in per1.partners:
+            relationships.append(
+                {
+                    "description": f"{per1.name} and {per2.name} are partners",
+                    "remove_func": self.__remove_partner_relationship,
+                }
+            )
+        return relationships
+
+    def __select_relationship(self, relationships):
+        """Prompt user to select a relationship to remove"""
         while True:
-            try:  # get the selection
+            try:
                 choice = int(input("Input: "))
                 if 1 <= choice <= len(relationships):
-                    selected_relation = relationships[
-                        choice - 1
-                    ]  # get the selected relationship
-                    break
+                    return relationships[choice - 1]
             except ValueError:
                 print("Invalid input. Please enter a number.")
 
-        if "is the parent of" in selected_relation:
-            if hasattr(per1, "children") and per2 in per1.children:
-                per1.children.remove(per2)  # remove the child
-                if hasattr(per2, "parents"):
-                    per2.parents.remove(per1)  # remove the parent
-            elif hasattr(per2, "children") and per1 in per2.children:
-                per2.children.remove(per1)
-                if hasattr(per1, "parents"):  # remove the parent
-                    per1.parents.remove(per2)
-        elif "are siblings" in selected_relation:
-            if (
-                hasattr(per1, "siblings") and per2 in per1.siblings
-            ):  # remove the sibling
-                per1.siblings.remove(per2)
-            if (
-                hasattr(per2, "siblings") and per1 in per2.siblings
-            ):  # remove the sibling
-                per2.siblings.remove(per1)
-        elif "are partners" in selected_relation:
-            if (
-                hasattr(per1, "partners") and per2 in per1.partners
-            ):  # remove the partner
-                per1.partners.remove(per2)
-            if (
-                hasattr(per2, "partners") and per1 in per2.partners
-            ):  # remove the partner
-                per2.partners.remove(per1)
+    def __remove_parent_child_relationship(self, per1, per2):
+        """Remove parent-child relationship between two people"""
+        if hasattr(per1, "children") and per2 in per1.children:
+            per1.children.remove(per2)
+            if hasattr(per2, "parents"):
+                per2.parents.remove(per1)
+        elif hasattr(per2, "children") and per1 in per2.children:
+            per2.children.remove(per1)
+            if hasattr(per1, "parents"):
+                per1.parents.remove(per2)
 
-        print(f"Removed relationship: {selected_relation}")
+    def __remove_sibling_relationship(self, per1, per2):
+        """Remove sibling relationship between two people"""
+        if hasattr(per1, "siblings") and per2 in per1.siblings:
+            per1.siblings.remove(per2)
+        if hasattr(per2, "siblings") and per1 in per2.siblings:
+            per2.siblings.remove(per1)
+
+    def __remove_partner_relationship(self, per1, per2):
+        """Remove partner relationship between two people"""
+        if hasattr(per1, "partners") and per2 in per1.partners:
+            per1.partners.remove(per2)
+        if hasattr(per2, "partners") and per1 in per2.partners:
+            per2.partners.remove(per1)
 
     def display_everything(self):
         """Display everything in a formatted table"""
@@ -439,7 +436,7 @@ class FamilyTree:
 
     def get_relationships(self, relationship, name):
         """Get the relationships between person"""
-        person_id = self.get_id(name)  # get the id of the person
+        person_id = self.stats.get_id(name)  # get the id of the person
         if person_id is None:
             print(f"{name} does not exist!")
             return
@@ -450,91 +447,215 @@ class FamilyTree:
             print(f"{name} does not exist!")
             return
         if relationship == "PARENTS":
-            self.display_parents(person)  # display the parents
+            self.stats.display_parents(person)  # display the parents
         elif relationship == "GRANDPARENTS":
-            self.display_grandparents(person)  # display the grandparents
+            self.stats.display_grandparents(person)  # display the grandparents
         elif relationship == "SIBLINGS":
-            self.display_siblings(person)  # display the siblings
+            self.stats.display_siblings(person)  # display the siblings
         elif relationship == "COUSINS":
-            self.display_cousins(person)  # display the cousins
+            self.stats.display_cousins(person)  # display the cousins
         elif relationship == "IMMEDIATE":
-            self.display_immediate(person)  # display the immediate family
+            self.stats.display_immediate(person)  # display the immediate family
         elif relationship == "EXTENDED":
-            self.display_extended(person)  # display the extended family
+            self.stats.display_extended(person)  # display the extended family
         else:
-            print(f'"{relationship}" is not a recognized relationship.')
+            self.__invalid_usage(relationship)
 
     def get_command(self, user_input):
         """Get the command from the user"""
         pattern = r"'([^']+)'"  # get the name
         names = re.findall(pattern, user_input)
         current_command = self.parse_command(user_input, "GET")
-        if current_command == "CALENDAR":
-            display_calendar(self.family)  # display the calendar
-        elif current_command == "ALLBIRTHDAYS":
-            for member in enumerate(self.family):
-                print(f"{member.name} has the birthday of {member.dob}")
-        elif current_command == "SORTBIRTHDAYS":
-            # Sort birthdays ignoring the year of birth
-            sorted_family = sorted(
-                self.family,
-                key=lambda member: (
-                    member.dob[5:],
-                    member.dob[:4],
-                ),  # ignore the year for sorting
-            )
-            # create a dictionary to store birthdays by month and day only
-            birthday_calendar = {}
-            for member in sorted_family:
-                birthday_key = member.dob[5:]  # only use MM-DD for the calendar key
-                if birthday_key not in birthday_calendar:
-                    birthday_calendar[birthday_key] = []
-                birthday_calendar[birthday_key].append(member.name)
-            # display the birthday calendar
-            for date, names in birthday_calendar.items():
-                names_list = ", ".join(names)
-                print(f"{date}: {names_list}")
-        elif current_command == "AVAGE":
-            avg_age = self.calc_avage()  # get the average age
-            if avg_age is not None:
-                print(
-                    f"The average age of living family members is {avg_age:.2f} years."
-                )  # print the average age
-            else:
-                print(
-                    "No living family members with valid date of birth."
-                )  # if there are no living family members
-        elif current_command == "DAVAGE":
-            avg_death_age = self.calc_davage()  # get the average death age
-            if avg_death_age is not None:
-                print(
-                    f"Average age at death is {avg_death_age:.2f} years."
-                )  # print the average death age
-            else:
-                print("No deceased family members with valid dates of birth and death.")
-        elif current_command == "INDIVCHILDCOUNT" and names:
-            self.get_indiv_cc(names[0])  # get the individual child count
-        elif current_command == "ACPP":
-            self.calc_acpp()  # get the average child per person
-        elif current_command == "EVERYTHING":
-            self.display_everything()  # display everything
-        elif (
-            current_command
-            in (
-                "PARENTS",
-                "GRANDPARENTS",
-                "SIBLINGS",
-                "COUSINS",
-                "IMMEDIATE",
-                "EXTENDED",
-            )
-            and names
-        ):
+
+        # Define a dictionary mapping commands to handler methods
+        command_handlers = {
+            "CALENDAR": lambda: display_calendar(self.family),
+            "ALLBIRTHDAYS": self.__handle_all_birthdays,
+            "SORTBIRTHDAYS": self.__handle_sort_birthdays,
+            "AVAGE": self.__handle_avage,
+            "DAVAGE": self.__handle_davage,
+            "INDIVCHILDCOUNT": lambda: (
+                self.stats.get_indiv_cc(names[0])
+                if names
+                else self.__invalid_usage(user_input)
+            ),
+            "ACPP": self.stats.calc_acpp,
+            "EVERYTHING": self.display_everything,
+        }
+
+        relationship_commands = {
+            "PARENTS",
+            "GRANDPARENTS",
+            "SIBLINGS",
+            "COUSINS",
+            "IMMEDIATE",
+            "EXTENDED",
+        }
+
+        if current_command in command_handlers:
+            command_handlers[current_command]()  # Call the handler function
+        elif current_command in relationship_commands and names:
             self.get_relationships(current_command, names[0])  # get the relationships
         else:
-            print(
-                f'"{user_input}" isn\'t used correctly. Please type HELP to get started.'
-            )
+            self.__invalid_usage(user_input)
+
+    def __handle_all_birthdays(self):
+        for member in self.family:
+            print(f"{member.name} has the birthday of {member.dob}")
+
+    def __handle_sort_birthdays(self):
+        # Sort birthdays ignoring the year of birth
+        sorted_family = sorted(
+            self.family,
+            key=lambda member: (
+                member.dob[5:],
+                member.dob[:4],
+            ),
+        )
+        # Create a dictionary to store birthdays by month and day only
+        birthday_calendar = {}
+        for member in sorted_family:
+            birthday_key = member.dob[5:]  # only use MM-DD for the calendar key
+            birthday_calendar.setdefault(birthday_key, []).append(member.name)
+        # Display the birthday calendar
+        for date, names in birthday_calendar.items():
+            names_list = ", ".join(names)
+            print(f"{date}: {names_list}")
+
+    def __handle_avage(self):
+        avg_age = self.stats.calc_avage()
+        if avg_age is not None:
+            print(f"The average age of living family members is {avg_age:.2f} years.")
+        else:
+            print("No living family members with valid date of birth.")
+
+    def __handle_davage(self):
+        avg_death_age = self.stats.calc_davage()
+        if avg_death_age is not None:
+            print(f"Average age at death is {avg_death_age:.2f} years.")
+        else:
+            print("No deceased family members with valid dates of birth and death.")
+
+    def __invalid_usage(self, user_input):
+        print(f'"{user_input}" isn\'t used correctly. Please type HELP to get started.')
+
+    def main(self):
+        """Main function of the code"""
+        print("Welcome to Family Tree CLI! Type HELP to get started!")
+        print()
+        while not self.prog_exit:
+            user_input = input(">>")
+            if user_input.upper().startswith("HELP"):
+                self.display_help()
+            elif user_input.upper().startswith(
+                "CLEAR"
+            ) or user_input.upper().startswith("CLS"):
+                clear.clear()
+            elif user_input.upper().startswith("EXIT"):
+                self.prog_exit = True
+            elif user_input.upper().startswith("ADD"):
+                self.add_remove_person(True, user_input)
+            elif user_input.upper().startswith("REMOVE"):
+                self.add_remove_person(False, user_input)
+            elif user_input.upper().startswith("GET"):
+                self.get_command(user_input)
+            else:
+                print(
+                    f'"{user_input}" is not a valid command. Please type HELP if you are stuck.'
+                )
+
+
+class FamilyTreeStatistics:
+    """Class to handle the statistics of the family"""
+
+    def __init__(self, family):
+        self.family = family
+
+    def get_grandparents(self, person):
+        """Return the grandparents of a person"""
+        grandparents = []
+        parents = getattr(person, "parents", [])
+        for parent in parents:
+            grandparents.extend(getattr(parent, "parents", []))
+        return grandparents
+
+    def get_grandchildren(self, person):
+        """Return the grandchildren of a person"""
+        grandchildren = []
+        children = getattr(person, "children", [])
+        for child in children:
+            grandchildren.extend(getattr(child, "children", []))
+        return grandchildren
+
+    def get_aunts_uncles(self, person):
+        """Return the aunts and uncles of a person"""
+        aunts_uncles = []
+        parents = getattr(person, "parents", [])
+        for parent in parents:
+            aunts_uncles.extend(getattr(parent, "siblings", []))
+        return aunts_uncles
+
+    def get_nieces_nephews(self, person):
+        """Return the nieces and nephews of a person"""
+        nieces_nephews = []
+        siblings = getattr(person, "siblings", [])
+        for sibling in siblings:
+            nieces_nephews.extend(getattr(sibling, "children", []))
+        return nieces_nephews
+
+    def get_cousins(self, person):
+        """Return the cousins of a person"""
+        cousins = []
+        aunts_uncles = self.get_aunts_uncles(person)
+        for aunt_uncle in aunts_uncles:
+            cousins.extend(getattr(aunt_uncle, "children", []))
+        return cousins
+
+    def get_immediate_family(self, person):
+        """Return the immediate family of a person"""
+        immediate_family = set()
+        immediate_family.update(getattr(person, "partners", []))
+        immediate_family.update(getattr(person, "parents", []))
+        immediate_family.update(getattr(person, "children", []))
+        immediate_family.update(getattr(person, "siblings", []))
+        return immediate_family
+
+    def display_extended(self, person):
+        """Display the extended family of a person"""
+        extended_family = set()
+        extended_family.update(self.get_grandparents(person))
+        extended_family.update(self.get_grandchildren(person))
+        extended_family.update(self.get_aunts_uncles(person))
+        extended_family.update(self.get_nieces_nephews(person))
+        extended_family.update(self.get_cousins(person))
+
+        immediate_family = self.get_immediate_family(person)
+        extended_family.difference_update(immediate_family)  # get the extended family
+
+        if extended_family:
+            print(f"Extended family of {person.name}:")  # print the extended family
+            for member in extended_family:
+                print(f"- {member.name}")
+        else:
+            print(f"{person.name} has no extended family recorded.")
+
+    def display_immediate(self, person):
+        """Display the immediate family of a person"""
+        immediate_family = set()
+        if hasattr(person, "partners") and person.partners:  # get the immediate family
+            immediate_family.update(person.partners)
+        if hasattr(person, "parents") and person.parents:
+            immediate_family.update(person.parents)
+        if hasattr(person, "children") and person.children:
+            immediate_family.update(person.children)
+        if hasattr(person, "siblings") and person.siblings:
+            immediate_family.update(person.siblings)
+        if immediate_family:
+            print(f"Immediate family of {person.name}:")
+            for member in immediate_family:
+                print(f"- {member.name}")  # print the immediate family
+        else:
+            print(f"{person.name} has no immediate family recorded.")
 
     def display_parents(self, person):
         """Display the parents of a person"""
@@ -658,97 +779,31 @@ class FamilyTree:
             return average_death_age
         return None
 
-    def display_immediate(self, person):
-        """Display the immediate family of a person"""
-        immediate_family = set()
-        if hasattr(person, "partners") and person.partners:  # get the immediate family
-            immediate_family.update(person.partners)
-        if hasattr(person, "parents") and person.parents:
-            immediate_family.update(person.parents)
-        if hasattr(person, "children") and person.children:
-            immediate_family.update(person.children)
-        if hasattr(person, "siblings") and person.siblings:
-            immediate_family.update(person.siblings)
-        if immediate_family:
-            print(f"Immediate family of {person.name}:")
-            for member in immediate_family:
-                print(f"- {member.name}")  # print the immediate family
-        else:
-            print(f"{person.name} has no immediate family recorded.")
+    def get_id(self, name):
+        """Get the ID of a person, sorts out any collisions too"""
+        matches = [
+            person for person in self.family if name.lower() in person.name.lower()
+        ]  # get the id of the person
+        if not matches:
+            print(f"Couldn't find '{name}'.")  # if the person is not found
+            return None
 
-    def display_extended(self, person):
-        """Display the extended family of a person"""
-        extended_family = set()
-        grandparents = []
-        if hasattr(person, "parents") and person.parents:
-            for parent in person.parents:
-                if hasattr(parent, "parents") and parent.parents:
-                    grandparents.extend(parent.parents)
-        extended_family.update(grandparents)
-        grandchildren = []
-        if hasattr(person, "children") and person.children:
-            for child in person.children:
-                if hasattr(child, "children") and child.children:
-                    grandchildren.extend(child.children)
-        extended_family.update(grandchildren)
-        aunts_uncles = []
-        if hasattr(person, "parents") and person.parents:
-            for parent in person.parents:
-                if hasattr(parent, "siblings") and parent.siblings:
-                    aunts_uncles.extend(parent.siblings)
-        extended_family.update(aunts_uncles)
-        nieces_nephews = []
-        if hasattr(person, "siblings") and person.siblings:
-            for sibling in person.siblings:
-                if hasattr(sibling, "children") and sibling.children:
-                    nieces_nephews.extend(sibling.children)
-        extended_family.update(nieces_nephews)
-        cousins = []
-        for aunt_uncle in aunts_uncles:
-            if hasattr(aunt_uncle, "children") and aunt_uncle.children:
-                cousins.extend(aunt_uncle.children)
-        extended_family.update(cousins)
-        immediate_family = set()
-        if hasattr(person, "partners") and person.partners:
-            immediate_family.update(person.partners)
-        if hasattr(person, "parents") and person.parents:
-            immediate_family.update(person.parents)
-        if hasattr(person, "children") and person.children:
-            immediate_family.update(person.children)
-        if hasattr(person, "siblings") and person.siblings:
-            immediate_family.update(person.siblings)
-        extended_family.difference_update(immediate_family)  # get the extended family
-        if extended_family:
-            print(f"Extended family of {person.name}:")  # print the extended family
-            for member in extended_family:
-                print(f"- {member.name}")
-        else:
-            print(f"{person.name} has no extended family recorded.")
-
-    def main(self):
-        """Main function of the code"""
-        print("Welcome to Family Tree CLI! Type HELP to get started!")
-        print()
-        while not self.prog_exit:
-            user_input = input(">>")
-            if user_input.upper().startswith("HELP"):
-                self.display_help()
-            elif user_input.upper().startswith(
-                "CLEAR"
-            ) or user_input.upper().startswith("CLS"):
-                clear.clear()
-            elif user_input.upper().startswith("EXIT"):
-                self.prog_exit = True
-            elif user_input.upper().startswith("ADD"):
-                self.add_remove_person(True, user_input)
-            elif user_input.upper().startswith("REMOVE"):
-                self.add_remove_person(False, user_input)
-            elif user_input.upper().startswith("GET"):
-                self.get_command(user_input)
-            else:
-                print(
-                    f'"{user_input}" is not a valid command. Please type HELP if you are stuck.'
+        if len(matches) == 1:  # if the person is found
+            return matches[0].id
+        while True:
+            print(
+                f'There are multiple people matching "{name}":'
+            )  # if there are multiple people with the same name
+            for i, person in enumerate(matches, start=1):
+                print(f"{i}: {person.name} (ID: {person.id})")  # print the people
+            try:
+                selection = int(  # get the selection
+                    input(f'Please select which "{name}" you want (enter the number): ')
                 )
+                if 1 <= selection <= len(matches):
+                    return matches[selection - 1].id
+            except ValueError:  # if the selection is not valid
+                print("Invalid input. Please enter a number.")
 
 
 if __name__ == "__main__":
