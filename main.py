@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime
-import Family
+import family_lib
 import clear
 from family_calendar import display_calendar
 
@@ -141,19 +141,20 @@ class FamilyTree:
             alive_status = True
         else:
             alive_status = False
-            while True:
-                death_date = input(
-                    f"Enter {names}'s date of death, in this format YYYY-MM-DD:"
-                )
-                if self.valid_dob(death_date, "%Y-%m-%d"):  # check if the date is valid
-                    break
         while True:
             ethnicity = input(f"Enter {names}'s ethnicity:")
             if ethnicity:
                 break
-        person = person_type(
-            names, dob, alive_status, ethnicity, death_date
-        )  # create the person
+        person = person_type(names, dob, alive_status, ethnicity)
+        if not alive_status:
+            while True:
+                death_date = input(
+                    f"Enter {names}'s date of death, in this format YYYY-MM-DD:"
+                )
+                if self.valid_dob(death_date, "%Y-%m-%d"):
+                    person.death_date = death_date  # Use the setter method
+                    break
+                # create the person
         self.family.append(person)  # add the person to the family
         print(f"Added {names} to the family!")
 
@@ -192,11 +193,11 @@ class FamilyTree:
     def handle_person_addition(self, current_command, names):
         """Handle the addition of a person to the program"""
         if current_command == "CHILD":
-            self.person_adder(names, Family.Child)
+            self.person_adder(names, family_lib.Child)
         elif current_command == "PARENT":
-            self.person_adder(names, Family.Parent)
+            self.person_adder(names, family_lib.Parent)
         elif current_command == "PARTNER":
-            self.person_adder(names, Family.Partner)
+            self.person_adder(names, family_lib.Partner)
         else:
             self.__invalid_usage(current_command)
 
@@ -237,14 +238,18 @@ class FamilyTree:
                     f"{per1.name} and {per2.name} are now partners"
                 )  # add the partner
         except TypeError:  # if the type is not valid
-            if not isinstance(per1, Family.ParentChild):
-                per1 = Family.convert(per1, Family.ParentChild)  # convert the person
+            if not isinstance(per1, family_lib.ParentChild):
+                per1 = family_lib.convert(
+                    per1, family_lib.ParentChild
+                )  # convert the person
                 self.family = [
                     per1 if person.id == original_id_per1 else person
                     for person in self.family
                 ]  # add the person
-            if not isinstance(per2, Family.ParentChild):
-                per2 = Family.convert(per2, Family.ParentChild)  # convert the person
+            if not isinstance(per2, family_lib.ParentChild):
+                per2 = family_lib.convert(
+                    per2, family_lib.ParentChild
+                )  # convert the person
                 self.family = [
                     per2 if person.id == original_id_per2 else person
                     for person in self.family
@@ -267,7 +272,7 @@ class FamilyTree:
             print(f"{name} does not exist!")
             return
         if isinstance(
-            person, (Family.Parent, Family.ParentChild)
+            person, (family_lib.Parent, family_lib.ParentChild)
         ):  # if the person is a parent
             if person.children:
                 print(f"In order to remove {name[0]}, you must remove:")
@@ -283,10 +288,10 @@ class FamilyTree:
     def remove_all_relationships(self, person):  # remove all the relationships
         """Remove all relationships of a person"""
         class_relationships = {  # the relationships
-            Family.Parent: ["partners", "parents", "siblings"],
-            Family.Child: ["parents", "siblings"],
-            Family.Partner: ["partners"],
-            Family.ParentChild: ["children", "partners", "parents", "siblings"],
+            family_lib.Parent: ["partners", "parents", "siblings"],
+            family_lib.Child: ["parents", "siblings"],
+            family_lib.Partner: ["partners"],
+            family_lib.ParentChild: ["children", "partners", "parents", "siblings"],
         }
 
         relationships = []
@@ -707,12 +712,12 @@ class FamilyTreeStatistics:
 
     def calc_avage(self):
         """Calculate the average age of the family"""
-        today = datetime.datetime.today()  # get the date
+        today = datetime.today()  # get the date
         ages = []
         for member in self.family:
             if member.is_alive:
                 try:
-                    dob = datetime.datetime.strptime(member.dob, "%Y-%m-%d")
+                    dob = datetime.strptime(member.dob, "%Y-%m-%d")
                     age = (today - dob).days / 365.25
                     ages.append(age)
                 except ValueError:

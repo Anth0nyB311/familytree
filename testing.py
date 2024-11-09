@@ -1,5 +1,5 @@
 import unittest
-from Family import Person, Parent, Child, Partner, ParentChild, convert
+from family_lib import Person, Parent, Child, Partner, ParentChild, convert
 from main import FamilyTree
 from unittest.mock import patch
 # AI GENERATED! NOT PART OF CODE!
