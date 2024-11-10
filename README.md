@@ -1,4 +1,4 @@
-# FamilyTree TODO PEP8 AND COMMENTING!
+# FamiyTree
 ### A University Of Greenwich Coursework for the COMP-1811-M01-2024-25 Paradigms of Programming (Greenwich Maritime Campus)
 | Student Name  |   Credit |
 | ------------- | ------------- |
