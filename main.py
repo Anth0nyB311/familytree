@@ -546,6 +546,7 @@ class FamilyTree:
         print("Welcome to Family Tree CLI! Type HELP to get started!")
         print()
         while not self.prog_exit:
+            self.stats.family = self.family
             user_input = input(">>")
             if user_input.upper().startswith("HELP"):
                 self.display_help()
