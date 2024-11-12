@@ -1,0 +1,142 @@
+- id: 1
+  type: Child
+  name: Jake Smith
+  dob: '2015-05-25'
+  is_alive: true
+  death_date: null
+  ethnicity: English
+  children_ids: []
+  partners_ids: []
+  parents_ids:
+  - 3
+  - 4
+  siblings_ids:
+  - 2
+- id: 2
+  type: Child
+  name: Laura Smith
+  dob: '2019-08-09'
+  is_alive: true
+  death_date: null
+  ethnicity: English
+  children_ids: []
+  partners_ids: []
+  parents_ids:
+  - 3
+  - 4
+  siblings_ids:
+  - 1
+- id: 3
+  type: ParentChild
+  name: Josh Smith
+  dob: '1993-07-24'
+  is_alive: true
+  death_date: null
+  ethnicity: English
+  children_ids:
+  - 1
+  - 2
+  partners_ids:
+  - 4
+  parents_ids:
+  - 5
+  - 6
+  siblings_ids:
+  - 9
+- id: 4
+  type: ParentChild
+  name: Lima Smith
+  dob: '1995-12-06'
+  is_alive: true
+  death_date: null
+  ethnicity: English
+  children_ids:
+  - 1
+  - 2
+  partners_ids:
+  - 3
+  parents_ids:
+  - 13
+  - 16
+  siblings_ids: []
+- id: 5
+  type: ParentChild
+  name: Bob Smith
+  dob: '1970-04-19'
+  is_alive: true
+  death_date: null
+  ethnicity: English/Irish
+  children_ids:
+  - 3
+  - 9
+  partners_ids:
+  - 6
+  parents_ids: []
+  siblings_ids: []
+- id: 6
+  type: Parent
+  name: Jenny Smith
+  dob: '1972-06-29'
+  is_alive: true
+  death_date: null
+  ethnicity: English
+  children_ids:
+  - 3
+  - 9
+  partners_ids:
+  - 5
+  parents_ids: []
+  siblings_ids: []
+- id: 9
+  type: ParentChild
+  name: Alice Smith
+  dob: '1989-04-17'
+  is_alive: true
+  death_date: null
+  ethnicity: English
+  children_ids:
+  - 10
+  partners_ids: []
+  parents_ids:
+  - 5
+  - 6
+  siblings_ids:
+  - 3
+- id: 10
+  type: ParentChild
+  name: Janice Laceheart
+  dob: '2015-07-15'
+  is_alive: true
+  death_date: null
+  ethnicity: English
+  children_ids: []
+  partners_ids: []
+  parents_ids:
+  - 9
+  siblings_ids: []
+- id: 13
+  type: ParentChild
+  name: Logan Cartwrite
+  dob: '1975-04-18'
+  is_alive: false
+  death_date: '2005-07-31'
+  ethnicity: English
+  children_ids:
+  - 4
+  partners_ids:
+  - 16
+  parents_ids: []
+  siblings_ids: []
+- id: 16
+  type: Parent
+  name: Lucy Cartwrite
+  dob: '1978-07-18'
+  is_alive: true
+  death_date: null
+  ethnicity: English
+  children_ids:
+  - 4
+  partners_ids:
+  - 13
+  parents_ids: []
+  siblings_ids: []

@@ -45,7 +45,7 @@ class Person(ABC):
             except ValueError as exc:
                 raise ValueError("Invalid date format. Please use YYYY-MM-DD.") from exc
         elif self.is_alive:
-            raise AttributeError("Cannot set a death date for a living person.")
+            self._death_date = None
         else:
             self._death_date = None
 

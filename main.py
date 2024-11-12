@@ -1,6 +1,7 @@
 """The main file, where the code runs from"""
 
 import re
+import yaml_lib
 from datetime import datetime
 import family_lib
 import clear
@@ -10,8 +11,9 @@ from family_calendar import display_calendar
 class FamilyTree:
     """Main class of code"""
 
-    def __init__(self):
-        self.family = []  # list of people in the family
+    def __init__(self, save_file):
+        self.family = yaml_lib.yaml_import(save_file) 
+        clear.clear()
         self.stats = FamilyTreeStatistics(self.family)
         self.prog_exit = False
 
@@ -391,20 +393,23 @@ class FamilyTree:
 
     def display_everything(self):
         """Display everything in a formatted table"""
-        headers = self.get_headers()
-        rows = self.get_family_rows()
-        col_widths = [
-            max(len(header), max(len(row[idx]) for row in rows))
-            for idx, header in enumerate(headers)
-        ]
-        row_format = " | ".join(f"{{:<{width}}}" for width in col_widths)
+        try:
+            headers = self.get_headers()
+            rows = self.get_family_rows()
+            col_widths = [
+                max(len(header), max(len(row[idx]) for row in rows))
+                for idx, header in enumerate(headers)
+            ]
+            row_format = " | ".join(f"{{:<{width}}}" for width in col_widths)
 
-        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
-        print(row_format.format(*headers))
-        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
-        for row in rows:
-            print(row_format.format(*row))
-        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
+            print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
+            print(row_format.format(*headers))
+            print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
+            for row in rows:
+                print(row_format.format(*row))
+            print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
+        except:
+            print("Can't display the table now...")
 
     def get_headers(self):
         """Just gets headers back"""
@@ -555,6 +560,7 @@ class FamilyTree:
             ) or user_input.upper().startswith("CLS"):
                 clear.clear()
             elif user_input.upper().startswith("EXIT"):
+                yaml_lib.yaml_export(self.family)
                 self.prog_exit = True
             elif user_input.upper().startswith("ADD"):
                 self.add_remove_person(True, user_input)
@@ -809,6 +815,4 @@ class FamilyTreeStatistics:
                 print("Invalid input. Please enter a number.")
 
 
-if __name__ == "__main__":
-    family_tree = FamilyTree()
-    family_tree.main()
+    
