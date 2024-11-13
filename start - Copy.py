@@ -1,12 +1,9 @@
 import clear
 import os
 from main import FamilyTree
-
-
 class main_prog:
     def __init__(self):
-        self.save_files = []
-
+        self.save_files =[]
     def chk_lib(self):
         missing = []
         try:
@@ -23,16 +20,9 @@ class main_prog:
             return True
         else:
             for lib in missing:
-                print(
-                f"{lib} library is missing. Please install it in order for this program to work! "
-                "Do this --> \n\n"
-                "1) Make sure you are running the latest version of Python.\n"
-                "2) Open a new privileged CMD and type:\n"
-                f"   pip install {lib}\n"
-                "3) Re-open this program.\n\n"
-                )
+                print(f"{lib} library is missing. Please install it in order for this program to work! Do this --> \n\n1)Make sure you are running the latest version of python.\n2)Open a new privileged CMD and type:\npip install {lib}\n3)Re-open this program.\n\n\n")
         return False
-
+    
     def loadSaves(self, saves):
         is_done = False
         while not is_done:
@@ -43,12 +33,12 @@ class main_prog:
             print()
             print(" 0: Do not load a save")
             for i in range(len(saves)):
-                print(f" {i + 1}: {saves[i].replace('family_tree_', '')}")
+                print(f" {i+1}: {saves[i].replace('family_tree_', '')}")
             print()
             print("=" * 50)
-
+        
             option = input("Enter your choice: ")
-
+        
             if option.isdigit() and 0 <= int(option) <= len(saves):
                 option = int(option)
                 is_done = True
@@ -56,12 +46,12 @@ class main_prog:
                 print("Sorry, I didn't understand the input.")
 
         return option
-
+    
     def mainMenu(self, selection):
         finish = False
         saves = "na"
         if selection > 0:
-            saves = self.save_files[selection - 1]
+            saves = self.save_files[selection-1]
         while not finish:
             clear.clear()
             print("=" * 45)
@@ -92,10 +82,9 @@ class main_prog:
                     print("Sorry, I didn't understand the input.")
             except ValueError:
                 print("Invalid input. Please enter a numerical value.")
+
     def main(self):
-        print("There is a bug with PyCharm and VS22 where the clear command does not work." 
-        "We recommend you DO NOT run this program on the debug console but instead with cmd.exe"
-        )
+        print("There is a bug with PyCharm and VS22 where the clear command does not work. We recommend you DO NOT run this program on the debug console but instead with cmd.exe")
         print()
         print("Press enter to dismiss...")
         input()
@@ -105,15 +94,14 @@ class main_prog:
         cur_dir = os.getcwd()
         save_selection = 0
         for file_name in os.listdir(cur_dir):
-            if file_name.startswith(
-                    "family_tree_") and file_name.endswith(".yaml"):
+            if file_name.startswith("family_tree_") and file_name.endswith(".yaml"):
                 self.save_files.append(file_name)
         if len(self.save_files) > 0:
             save_selection = self.loadSaves(self.save_files)
         clear.clear()
         self.mainMenu(save_selection)
-
+        
 
 if __name__ == "__main__":
-    prog = main_prog()
-    prog.main()
+        prog = main_prog()
+        prog.main()

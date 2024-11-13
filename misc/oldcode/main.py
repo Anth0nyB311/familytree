@@ -2,7 +2,7 @@ import subprocess, sys, os
 import lib
 from clear import clear
 
-class mainProgram:
+class main_program:
     def __init__(self):
         self.foundXmls = []
         self.lineages = []
@@ -30,16 +30,16 @@ class mainProgram:
             print()
             print("=" * 45)
             try:
-                userOption = int(input("Your option: "))
-                if userOption == 1:
+                user_option = int(input("Your option: "))
+                if user_option == 1:
                     import cli
                     finish = True
-                elif userOption == 2:
+                elif user_option == 2:
                     import gui
                     gui_app = gui.FamilyTreeGUI(self.lineages)
                     gui_app.main_gui()
                     finish = True
-                elif userOption == 3:
+                elif user_option == 3:
                     exit()
                     finish = True
                 else:
@@ -50,8 +50,8 @@ class mainProgram:
                 #test
 
     def loadSaves(self, saves):
-        isDone = False
-        while not isDone:
+        is_done = False
+        while not is_done:
             clear()
             print("=" * 50)
             print()
@@ -67,7 +67,7 @@ class mainProgram:
         
             if option.isdigit() and 0 <= int(option) <= len(saves):
                 option = int(option)
-                isDone = True
+                is_done = True
             else:
                 print("Sorry, I didn't understand the input.")
 
@@ -88,5 +88,5 @@ class mainProgram:
         self.mainMenu(saveSelection)
 
 if __name__ == "__main__":
-    program = mainProgram()
+    program = main_program()
     sys.exit(int(program.main() or 0))

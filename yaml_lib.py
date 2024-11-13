@@ -1,14 +1,19 @@
-import yaml
+"""autosave feature"""
 import datetime
+import sys
+import subprocess
+import yaml
 from family_lib import Person, Parent, Child, Partner, ParentChild
 
-    
 
 def return_save_filename():
+    """Gets the filename"""
     timestamp = datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
-    return (f'family_tree_{timestamp}.yaml')
+    return f"family_tree_{timestamp}.yaml"
+
 
 def yaml_export(family, filename=return_save_filename()):
+    """exports yaml file"""
     try:
         serialized_family = []
         for person in family:
@@ -45,6 +50,7 @@ def yaml_export(family, filename=return_save_filename()):
 
 
 def yaml_import(filename):
+    """imports the yaml"""
     try:
         with open(filename, "r") as f:
             family_data = yaml.safe_load(f)
@@ -141,5 +147,6 @@ def yaml_import(filename):
     except Exception as e:
         print(f"Unexpected error found: {e}")
         return []
-    
 
+if __name__ == "__main__":
+    subprocess.run([sys.executable, "start.py"])

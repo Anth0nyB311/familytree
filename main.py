@@ -1,8 +1,9 @@
 """The main file, where the code runs from"""
-
 import re
-import yaml_lib
+import sys
+import subprocess
 from datetime import datetime
+import yaml_lib
 import family_lib
 import clear
 from family_calendar import display_calendar
@@ -12,7 +13,7 @@ class FamilyTree:
     """Main class of code"""
 
     def __init__(self, save_file):
-        self.family = yaml_lib.yaml_import(save_file) 
+        self.family = yaml_lib.yaml_import(save_file)
         clear.clear()
         self.stats = FamilyTreeStatistics(self.family)
         self.prog_exit = False
@@ -53,7 +54,7 @@ class FamilyTree:
         GET
         ===
         |
-        --> PARENTS/GRANDPARENTS/SIBLINGS/COUSINS
+        --> PARENTS/GRANDPARENTS/GRANDCHILDREN/SIBLINGS/COUSINS
             This will return the people (based on relationships) that are related to the selected user.
             Use Case --> GET PARENTS OF 'Jack'
         |
@@ -393,24 +394,29 @@ class FamilyTree:
 
     def display_everything(self):
         """Display everything in a formatted table"""
-        try:
-            headers = self.get_headers()
-            rows = self.get_family_rows()
-            col_widths = [
-                max(len(header), max(len(row[idx]) for row in rows))
-                for idx, header in enumerate(headers)
-            ]
-            row_format = " | ".join(f"{{:<{width}}}" for width in col_widths)
+        sorted_family = sorted(
+            self.family,
+            key=lambda member: (
+                datetime.strptime(member.dob, "%Y-%m-%d")
+                if self.valid_dob(member.dob)
+                else datetime.min
+            ),
+            reverse=True,
+        )
+        headers = self.get_headers()
+        rows = self.get_family_rows(sorted_family)
+        col_widths = [
+            max(len(header), max(len(row[idx]) for row in rows))
+            for idx, header in enumerate(headers)
+        ]
+        row_format = " | ".join(f"{{:<{width}}}" for width in col_widths)
 
-            print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
-            print(row_format.format(*headers))
-            print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
-            for row in rows:
-                print(row_format.format(*row))
-            print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
-        except:
-            print("Can't display the table now...")
-
+        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
+        print(row_format.format(*headers))
+        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
+        for row in rows:
+            print(row_format.format(*row))
+        print("-" * (sum(col_widths) + len(col_widths) * 3 - 1))
     def get_headers(self):
         """Just gets headers back"""
         return [
@@ -424,10 +430,10 @@ class FamilyTree:
             "Siblings",
         ]
 
-    def get_family_rows(self):
+    def get_family_rows(self, family):
         """Makes the rows"""
         rows = []
-        for person in self.family:
+        for person in family:
             row = [
                 person.name,
                 person.dob,
@@ -457,6 +463,8 @@ class FamilyTree:
             self.stats.display_parents(person)  # display the parents
         elif relationship == "GRANDPARENTS":
             self.stats.display_grandparents(person)  # display the grandparents
+        elif relationship == "GRANDCHILDREN":
+            self.stats.display_grandchildren(person)
         elif relationship == "SIBLINGS":
             self.stats.display_siblings(person)  # display the siblings
         elif relationship == "COUSINS":
@@ -481,11 +489,7 @@ class FamilyTree:
             "SORTBIRTHDAYS": self.__handle_sort_birthdays,
             "AVAGE": self.__handle_avage,
             "DAVAGE": self.__handle_davage,
-            "INDIVCHILDCOUNT": lambda: (
-                self.stats.get_indiv_cc(names[0])
-                if names
-                else self.__invalid_usage(user_input)
-            ),
+            "INDIVCHILDCOUNT": self.stats.get_indiv_cc,
             "ACPP": self.stats.calc_acpp,
             "EVERYTHING": self.display_everything,
         }
@@ -493,6 +497,7 @@ class FamilyTree:
         relationship_commands = {
             "PARENTS",
             "GRANDPARENTS",
+            "GRANDCHILDREN",
             "SIBLINGS",
             "COUSINS",
             "IMMEDIATE",
@@ -620,13 +625,28 @@ class FamilyTreeStatistics:
             cousins.extend(getattr(aunt_uncle, "children", []))
         return cousins
 
-    def get_immediate_family(self, person):
-        """Return the immediate family of a person"""
+    def get_immediate_family(self, person, needed_alive=False):
+        """Return the immediate family of a person, with an option to include only alive members."""
         immediate_family = set()
-        immediate_family.update(getattr(person, "partners", []))
-        immediate_family.update(getattr(person, "parents", []))
-        immediate_family.update(getattr(person, "children", []))
-        immediate_family.update(getattr(person, "siblings", []))
+
+        # Gather all immediate family members regardless of alive status
+        partners = getattr(person, "partners", [])
+        parents = getattr(person, "parents", [])
+        children = getattr(person, "children", [])
+        siblings = getattr(person, "siblings", [])
+
+        # Filter by alive status if needed
+        if needed_alive:
+            partners = [member for member in partners if member.is_alive]
+            parents = [member for member in parents if member.is_alive]
+            children = [member for member in children if member.is_alive]
+            siblings = [member for member in siblings if member.is_alive]
+
+        immediate_family.update(partners)
+        immediate_family.update(parents)
+        immediate_family.update(children)
+        immediate_family.update(siblings)
+
         return immediate_family
 
     def display_extended(self, person):
@@ -638,11 +658,13 @@ class FamilyTreeStatistics:
         extended_family.update(self.get_nieces_nephews(person))
         extended_family.update(self.get_cousins(person))
 
-        immediate_family = self.get_immediate_family(person)
+        immediate_family = self.get_immediate_family(person, True)
         extended_family.difference_update(immediate_family)  # get the extended family
 
-        if extended_family:
+        if extended_family or immediate_family:
             print(f"Extended family of {person.name}:")  # print the extended family
+            for members in immediate_family:
+                print(f"- {members.name} (immediate)")
             for member in extended_family:
                 print(f"- {member.name}")
         else:
@@ -689,6 +711,19 @@ class FamilyTreeStatistics:
         else:
             print(f"{person.name} has no grandparents recorded.")
 
+    def display_grandchildren(self, person):
+        """Gets the persons grandchildren"""
+        grandchildren = []
+        children = getattr(person, "children", [])
+        for child in children:
+            grandchildren.extend(getattr(child, "children", []))
+        if grandchildren:
+            print(f"Grandchildren of {person.name}:")
+            for grandchildrens in grandchildren:
+                print(f"- {grandchildrens.name}")
+        else:
+            print(f"{person.name} has no grandchildren recorded.")
+
     def display_siblings(self, person):
         """Display the siblings of a person"""
         if hasattr(person, "siblings") and person.siblings:  # get the siblings
@@ -730,41 +765,29 @@ class FamilyTreeStatistics:
             return sum(ages) / len(ages)
         return None
 
-    def get_indiv_cc(self, name):
+    def get_indiv_cc(self):
         """Get the individual child count"""
-        person_id = self.get_id(name)  # get the id of the person
-        if person_id is None:
-            print(f"{name} does not exist!")
-            return
-        person = next(
-            (person for person in self.family if person.id == person_id), None
-        )  # get the person
-        if person is None:
-            print(f"{name} does not exist!")
-            return
-        if hasattr(person, "children") and person.children:  # get the children
-            child_count = len(person.children)
-            print(
-                f'{person.name} has {child_count} child{"ren" if child_count > 1 else ""}.'
-            )  # print the children
-        else:
-            print(f"{person.name} has no children.")
+        for person in self.family:
+            if hasattr(person, "children") and person.children:
+                child_count = len(person.children)
+                print(
+                    f'{person.name} : {child_count} child{"ren" if child_count > 1 else ""}.'
+                )
+            else:
+                print(f"{person.name} : 0 children")
 
     def calc_acpp(self):
         """Calculate the average child per person"""
         total_children = 0
-        parent_count = 0
         for member in self.family:  # get the average child per person
-            if hasattr(member, "children") and member.children:
-                total_children += len(member.children)
-                parent_count += 1
-        if parent_count > 0:
-            average_children = total_children / parent_count
-            print(
-                f"The average number of children per person is {average_children:.2f}."
-            )  # print the average children
+            if isinstance(member, (family_lib.ParentChild, family_lib.Child)):
+                if len(member.parents) > 0:
+                    total_children += 1
+        if total_children > 0:
+            av = total_children / len(self.family)
+            print(f"Average ACPP is: {str(round(av,2))}")
         else:
-            print("No parents with children found in the family.")
+            print("No children yet..")
 
     def calc_davage(self):
         """Calculate the average death age of the family"""
@@ -814,5 +837,5 @@ class FamilyTreeStatistics:
             except ValueError:  # if the selection is not valid
                 print("Invalid input. Please enter a number.")
 
-
-    
+if __name__ == "__main__":
+    subprocess.run([sys.executable, "start.py"])

@@ -1,6 +1,8 @@
 """Family calendar"""
 
 import curses
+import sys
+import subprocess
 import calendar
 from datetime import datetime
 
@@ -201,3 +203,6 @@ def display_calendar(family_members):
             pass  # Exit on Ctrl+C
 
     curses.wrapper(main)
+
+if __name__ == "__main__":
+    subprocess.run([sys.executable, "start.py"])

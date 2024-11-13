@@ -1,6 +1,8 @@
 """Base family member classes"""
 
 from abc import ABC, abstractmethod
+import sys
+import subprocess
 from datetime import datetime
 
 
@@ -211,3 +213,6 @@ def convert(instance, new_class):
             ]
 
     return new_instance  # This acts like a global function that can be used anywhere in the code.
+
+if __name__ == "__main__":
+    subprocess.run([sys.executable, "start.py"])
