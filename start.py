@@ -94,7 +94,7 @@ class main_prog:
                 print("Invalid input. Please enter a numerical value.")
     def main(self):
         print("There is a bug with PyCharm and VS22 where the clear command does not work." 
-        "We recommend you DO NOT run this program on the debug console but instead with cmd.exe"
+        " We recommend you DO NOT run this program on the debug console but instead with cmd.exe"
         )
         print()
         print("Press enter to dismiss...")
