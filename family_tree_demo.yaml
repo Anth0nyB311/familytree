@@ -150,7 +150,7 @@
   dob: '2024-10-04'
   is_alive: true
   death_date: null
-  ethnicity: Smith
+  ethnicity: English
   children_ids: []
   partners_ids: []
   parents_ids:
