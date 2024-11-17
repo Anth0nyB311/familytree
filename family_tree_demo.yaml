@@ -100,7 +100,9 @@
   ethnicity: English
   children_ids:
   - 10
-  partners_ids: []
+  - 18
+  partners_ids:
+  - 19
   parents_ids:
   - 5
   - 6
@@ -117,7 +119,8 @@
   partners_ids: []
   parents_ids:
   - 9
-  siblings_ids: []
+  siblings_ids:
+  - 18
 - id: 13
   type: ParentChild
   name: Logan Cartwrite
@@ -157,5 +160,32 @@
   - 3
   - 4
   siblings_ids:
-  - 2
   - 1
+  - 2
+- id: 18
+  type: Child
+  name: Josh Kowalski
+  dob: '2017-01-26'
+  is_alive: true
+  death_date: null
+  ethnicity: English/Polish
+  children_ids: []
+  partners_ids: []
+  parents_ids:
+  - 9
+  - 19
+  siblings_ids:
+  - 10
+- id: 19
+  type: ParentChild
+  name: Leon Kowalski
+  dob: '1987-05-25'
+  is_alive: true
+  death_date: null
+  ethnicity: Polish
+  children_ids:
+  - 18
+  partners_ids:
+  - 9
+  parents_ids: []
+  siblings_ids: []
