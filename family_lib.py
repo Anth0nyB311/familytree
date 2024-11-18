@@ -213,6 +213,6 @@ def convert(instance, new_class):
             ]
 
     return new_instance  # This acts like a global function that can be used anywhere in the code.
-
 if __name__ == "__main__":
-    subprocess.run([sys.executable, "start.py"])
+    subprocess.run([sys.executable, "start.py"],check=True)
+    

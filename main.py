@@ -836,6 +836,5 @@ class FamilyTreeStatistics:
                     return matches[selection - 1].id
             except ValueError:  # if the selection is not valid
                 print("Invalid input. Please enter a number.")
-
 if __name__ == "__main__":
-    subprocess.run([sys.executable, "start.py"])
+    subprocess.run([sys.executable, "start.py"], check=True)
