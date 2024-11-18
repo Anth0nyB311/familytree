@@ -7,27 +7,29 @@
 #### Plagiarism 
 Please do not copy our work, as doing so constitutes plagiarism and is in direct violation of the universitys coursework requirements. We take academic integrity seriously, and any attempt to claim our work as your own can be disputed with concrete evidence from our Git commit history. Our project is open source, and were making it available for others to learn from—respecting the original creators is key to maintaining this collaborative spirit. Any signs of plagiarism will be directly reported to Yasmine Arafa.
 
-#### Scenario
-The family would like to create a digital family tree. Cornelia Emmersohn knows that she has Indian/Asian roots whilst her husband, Otto Emmersohn, has ancestors from all over Europe. Unfortunately, not everyone has one spouse and two children. People can have more than one spouse in their lifetime (though not simultaneously). Unfortunately, children can die before their parents, which can influence who inherits.
+## About
+Family tree is a program in which you can enter your own heritage in a sorted manner. This program has a CLI/GUI interface where you can interract in a DML style of coding. It is very simple to grasp which makes it simple for anyone to use. The main purpose of this program was to show our OOP skills in Python by using features such as polymorphism or inhertiance (which you can see in family_lib.py). We also try to maintain a high level of PEP8 where we can... I have taken inspiration for this program from my previous projects (mainly NiniteForCMD) which has the same style of interaction. 
 
-Every person in the Emmersohn family must have parents and a name, be born, and may have died, although in a few cases not all their details may be known. A person can be related to other family members as follows: parent, partner, child, sibling, cousin, etc. The record for each person in the tree should hold the minimum information listed above. The record should not include fields for siblings, cousins, etc.
-
-#### Requirements
-- Work in pairs to implement the project, but write individual reports.
-- Define custom data types for modeling a family tree in Python using Object-Oriented Design (OOP) principles.
-- One member should create the data for the ancestors of Cornelia Emmersohn (maternal branch) while the other should create the data for the ancestors of Otto Emmersohn (paternal branch).
-- Each member should have records for at least 10 family members, ensuring consistency in the order of information with the partner.
-- Each member should populate their respective branch with the data of their members.
-- The two branches should be combined into a complete family tree for the final features of the implementation.
-
-### [You can find the spec here](https://github.com/Anth0nyB311/familytree/blob/main/docs/COMP1811_PythonProj_2024-25%20CWSpec%20--.pdf)
-### [You can find the reporting file here](https://github.com/Anth0nyB311/familytree/blob/main/docs/COMP1811_PythonProject_ReportTemplate.docx)
-
-## How to run this project?
-Please make sure you run this project **from main.py ONLY!** 
-
-# Ive removed autosave as it will take too much time for no reason...
-
-## If you run Windows, please make sure you do pip-install curses
-
-
+# Getting started
+1) Make sure you have the correct Python version and libraries installed with Git. Currently, the only version that works at this moment is ***Python 3.12*** (Python 3.13 does not work yet as windows-curses hasn't been updated yet).
+- If you are running Windows with choco (if not, [install it](https://chocolatey.org/install)), here is how to get the correct version of python:
+```bash
+choco install python312 git
+```
+- Now, get the needed libraries (on a new CLI)
+```bash
+pip install pyyaml windows-curses
+```
+2) Now we just get our work enviroment ready and ready to run!
+- Create a new directory, and then clone our repo
+```bash
+mkdir project
+cd project
+git clone https://github.com/Anth0nyB311/familytree.git
+cd familytree
+```
+- Run the program, **IT IS VERY IMPORTANT THAT YOU RUN FROM START.PY!**
+```bash
+python start.py
+```
+3) You have our program! Try using the demo to check out features!
