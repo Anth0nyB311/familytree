@@ -4,13 +4,50 @@ import yaml_lib
 from main import FamilyTree
 from family_lib import Parent, Child, Partner
 from datetime import datetime
+import os
 
 class FamilyTreeGUI:
     def __init__(self, save_file="na"):
-        # Create FamilyTree instance to handle logic
-        self.ft = FamilyTree(save_file)
         self.root = None
         self.selected_person = None
+        
+        # Debug print for save_file path
+        print(f"Attempting to load save file: {save_file}")
+        
+        # Ensure the save file path is correct
+        if save_file != "na" and not os.path.isabs(save_file):
+            save_file = os.path.join(os.getcwd(), save_file)
+            print(f"Absolute path: {save_file}")
+        
+        # Initialize FamilyTree with the save file
+        self.ft = FamilyTree(save_file)
+        
+        # Debug prints
+        if hasattr(self.ft, 'family'):
+            print(f"Loaded {len(self.ft.family)} family members")
+            for member in self.ft.family:
+                print(f"- {member.name} ({type(member).__name__})")
+        else:
+            print("No family attribute found in FamilyTree instance")
+
+    def load_family(self):
+        """Load a family tree from a save file"""
+        from tkinter import filedialog
+        filename = filedialog.askopenfilename(
+            initialdir="./saves",
+            title="Select save file",
+            filetypes=(("YAML files", "*.yaml"), ("all files", "*.*"))
+        )
+        if filename:
+            try:
+                print(f"Loading file: {filename}")  # Debug print
+                self.ft = FamilyTree(filename)
+                print(f"Family tree loaded, members: {len(self.ft.family)}")  # Debug print
+                self.refresh_family_list()
+                messagebox.showinfo("Success", f"Family tree loaded successfully! {len(self.ft.family)} members loaded.")
+            except Exception as e:
+                print(f"Error loading family tree: {str(e)}")  # Debug print
+                messagebox.showerror("Error", f"Failed to load family tree: {str(e)}")
 
     def remove_relationship_dialog(self):
         if not self.selected_person:
@@ -54,23 +91,53 @@ class FamilyTreeGUI:
     def display_family(self):
         self.root = tk.Tk()
         self.root.title("Family Tree Manager")
-        self.root.geometry("800x600")
+        self.root.geometry("1000x800")
+        self.root.minsize(1000, 800)
 
         # Create main frame
         main_frame = ttk.Frame(self.root, padding="10")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        
+        # Configure grid weights
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+        main_frame.grid_rowconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(1, weight=1)
 
         # Left panel - Family list
         left_frame = ttk.LabelFrame(main_frame, text="Family Members", padding="5")
         left_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5)
+        left_frame.grid_rowconfigure(0, weight=1)
+        left_frame.grid_columnconfigure(0, weight=1)
 
-        self.family_listbox = tk.Listbox(left_frame, width=30, height=20)
-        self.family_listbox.pack(fill=tk.BOTH, expand=True)
+        self.family_listbox = tk.Listbox(left_frame, width=30)
+        self.family_listbox.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.family_listbox.bind('<<ListboxSelect>>', self.on_select_person)
 
+        # Add scrollbar to listbox
+        scrollbar = ttk.Scrollbar(left_frame, orient="vertical", command=self.family_listbox.yview)
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        self.family_listbox.configure(yscrollcommand=scrollbar.set)
+
+        # Right panel with scrollbar
+        right_outer_frame = ttk.Frame(main_frame)
+        right_outer_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S))
+        right_outer_frame.grid_rowconfigure(0, weight=1)
+        right_outer_frame.grid_columnconfigure(0, weight=1)
+
+        # Create canvas and scrollbar for right panel
+        canvas = tk.Canvas(right_outer_frame)
+        scrollbar = ttk.Scrollbar(right_outer_frame, orient="vertical", command=canvas.yview)
+        right_frame = ttk.Frame(canvas)
+
+        # Configure canvas
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        canvas.create_window((0, 0), window=right_frame, anchor="nw")
+
         # Right panel - Actions
-        right_frame = ttk.Frame(main_frame, padding="5")
-        right_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S))
+        right_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
         # Add Person section
         add_frame = ttk.LabelFrame(right_frame, text="Add Person", padding="5")
@@ -112,13 +179,34 @@ class FamilyTreeGUI:
         ttk.Button(save_frame, text="Load Family Tree", command=self.load_family).pack(fill=tk.X, pady=2)
         ttk.Button(save_frame, text="Exit", command=self.exit_program).pack(fill=tk.X, pady=2)
 
+        # Update scroll region when frame size changes
+        def configure_scroll_region(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        right_frame.bind("<Configure>", configure_scroll_region)
+
         self.refresh_family_list()
         self.root.mainloop()
 
     def refresh_family_list(self):
-        self.family_listbox.delete(0, tk.END)
+        """Refresh the family list display"""
+        self.family_listbox.delete(0, tk.END)  # Clear current list
+        
+        if not hasattr(self.ft, 'family') or not self.ft.family:
+            self.family_listbox.insert(tk.END, "No family members added yet")
+            self.family_listbox.itemconfig(0, {'fg': 'gray'})
+            return
+        
+        # Debug print
+        print(f"Number of family members: {len(self.ft.family)}")
+        
         for person in self.ft.family:
-            self.family_listbox.insert(tk.END, f"{person.name} ({person.__class__.__name__})")
+            try:
+                display_text = f"{person.name} ({person.__class__.__name__})"
+                print(f"Adding to list: {display_text}")  # Debug print
+                self.family_listbox.insert(tk.END, display_text)
+            except Exception as e:
+                print(f"Error adding person to list: {e}")  # Debug print
+                messagebox.showerror("Error", f"Error loading family member: {e}")
 
     def add_person_dialog(self, person_type):
         dialog = tk.Toplevel(self.root)
@@ -252,19 +340,6 @@ class FamilyTreeGUI:
         if messagebox.askyesno("Exit", "Do you want to save before exiting?"):
             self.save_family()
         self.root.quit()
-
-    def load_family(self):
-        """Load a family tree from a save file"""
-        from tkinter import filedialog
-        filename = filedialog.askopenfilename(
-            initialdir="./saves",
-            title="Select save file",
-            filetypes=(("YAML files", "*.yaml"), ("all files", "*.*"))
-        )
-        if filename:
-            self.ft = FamilyTree(filename)
-            self.refresh_family_list()
-            messagebox.showinfo("Success", "Family tree loaded successfully!")
 
     def new_family(self):
         """Create a new empty family tree"""

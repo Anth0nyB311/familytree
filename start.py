@@ -4,8 +4,8 @@ import shutil
 from main import FamilyTree
 from familytree_gui import FamilyTreeGUI
 
-
 class StartProgram:
+    
     def __init__(self):
         self.save_files = []
 
@@ -81,6 +81,7 @@ class StartProgram:
                     print("Sorry, I didn't understand the input.")
             except ValueError:
                 print("Invalid input. Please enter a numerical value.")
+
     def main(self):
         print("There is a bug with PyCharm and VS22 where the clear command does not work." 
         " We recommend you DO NOT run this program on the debug console but instead with cmd.exe"
