@@ -69,7 +69,9 @@ class StartProgram:
                     program.main()
                     finish = True
                 elif user_option == 2:
-                    # Anthony, place your code here
+                    print("Launching the GUI...")
+                    gui_program = FamilyTreeGUI(saves)
+                    gui_program.display_family()
                     finish = True
                 elif user_option == 3:
                     finish = True
