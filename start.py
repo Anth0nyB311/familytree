@@ -1,5 +1,6 @@
 import clear
 import os
+import shutil
 from main import FamilyTree
 
 
@@ -7,33 +8,21 @@ class main_prog:
     def __init__(self):
         self.save_files = []
 
-    def chk_lib(self):
-        missing = []
-        try:
-            import curses
-        except ImportError:
-            missing.append("windows-curses")
-        try:
-            import yaml
-        except ImportError:
-            missing.append("pyyaml")
-        if not missing:
-            print("Libraries already present...")
-            clear.clear()
-            return True
-        else:
-            for lib in missing:
-                print(
-                f"{lib} library is missing. Please install it in order for this program to work! "
-                "Do this --> \n\n"
-                "1) Make sure you are running the latest version of Python.\n"
-                "2) Open a new privileged CMD and type:\n"
-                f"   pip install {lib}\n"
-                "3) Re-open this program.\n\n"
-                )
-        return False
+    def save_folder(self):
+        if not os.path.exists("saves"):
+            os.makedirs("saves")
+            source = os.getcwd()
+            cur_saves = self.search_for_saves(os.getcwd())
+            for files in cur_saves:
+                source_path = os.path.join(source,files)
+                save_path = os.path.join("saves",files)
+                if os.path.exists(source_path):
+                    shutil.copy(source_path,save_path)
+                os.remove(files)
+        self.save_files = self.search_for_saves("saves")            
 
-    def loadSaves(self, saves):
+    def load_saves(self):
+        self.save_folder()
         is_done = False
         while not is_done:
             clear.clear()
@@ -42,14 +31,14 @@ class main_prog:
             print("We found your previous saves, please select one:")
             print()
             print(" 0: Do not load a save")
-            for i in range(len(saves)):
-                print(f" {i + 1}: {saves[i].replace('family_tree_', '')}")
+            for i in range(len(self.save_files)):
+                print(f" {i + 1}: {self.save_files[i].replace('family_tree_', '')}")
             print()
             print("=" * 50)
 
             option = input("Enter your choice: ")
 
-            if option.isdigit() and 0 <= int(option) <= len(saves):
+            if option.isdigit() and 0 <= int(option) <= len(self.save_files):
                 option = int(option)
                 is_done = True
             else:
@@ -100,18 +89,23 @@ class main_prog:
         print("Press enter to dismiss...")
         input()
         clear.clear()
-        if not self.chk_lib():
-            exit()
-        cur_dir = os.getcwd()
         save_selection = 0
-        for file_name in os.listdir(cur_dir):
-            if file_name.startswith(
-                    "family_tree_") and file_name.endswith(".yaml"):
-                self.save_files.append(file_name)
-        if len(self.save_files) > 0:
-            save_selection = self.loadSaves(self.save_files)
+        no_of_saves = len(self.search_for_saves("saves") or self.search_for_saves(os.getcwd()))
+        if no_of_saves > 0:
+            save_selection = self.load_saves()
         clear.clear()
         self.mainMenu(save_selection)
+
+    def search_for_saves(self,folder):
+        files = []
+        try:
+            for file_name in os.listdir(folder):
+                if file_name.startswith(
+                        "family_tree_") and file_name.endswith(".yaml"):
+                    files.append(file_name)
+        except:
+            print("Failed to search folder:" + folder)
+        return files
 
 
 if __name__ == "__main__":
