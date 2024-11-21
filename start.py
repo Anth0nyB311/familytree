@@ -1,10 +1,9 @@
-import clear
 import os
-import shutil
 from main import FamilyTree
+from family_lib import Parent, Child, Partner, ParentChild
 
 
-class main_prog:
+class StartProgram:
     def __init__(self):
         self.save_files = []
 
@@ -25,20 +24,17 @@ class main_prog:
         self.save_folder()
         is_done = False
         while not is_done:
-            clear.clear()
             print("=" * 50)
-            print()
             print("We found your previous saves, please select one:")
-            print()
             print(" 0: Do not load a save")
-            for i in range(len(self.save_files)):
-                print(f" {i + 1}: {self.save_files[i].replace('family_tree_', '')}")
+            for i in range(len(saves)):
+                print(f" {i + 1}: {saves[i].replace('family_tree_', '')}")
             print()
             print("=" * 50)
 
             option = input("Enter your choice: ")
 
-            if option.isdigit() and 0 <= int(option) <= len(self.save_files):
+            if option.isdigit() and 0 <= int(option) <= len(saves):
                 option = int(option)
                 is_done = True
             else:
@@ -89,25 +85,20 @@ class main_prog:
         print("Press enter to dismiss...")
         input()
         clear.clear()
+        if not self.chk_lib():
+            exit()
+        cur_dir = os.getcwd()
         save_selection = 0
-        no_of_saves = len(self.search_for_saves("saves") or self.search_for_saves(os.getcwd()))
-        if no_of_saves > 0:
-            save_selection = self.load_saves()
+        for file_name in os.listdir(cur_dir):
+            if file_name.startswith(
+                    "family_tree_") and file_name.endswith(".yaml"):
+                self.save_files.append(file_name)
+        if len(self.save_files) > 0:
+            save_selection = self.loadSaves(self.save_files)
         clear.clear()
         self.mainMenu(save_selection)
 
-    def search_for_saves(self,folder):
-        files = []
-        try:
-            for file_name in os.listdir(folder):
-                if file_name.startswith(
-                        "family_tree_") and file_name.endswith(".yaml"):
-                    files.append(file_name)
-        except:
-            print("Failed to search folder:" + folder)
-        return files
-
 
 if __name__ == "__main__":
-    prog = main_prog()
+    prog = StartProgram()
     prog.main()
