@@ -1,6 +1,6 @@
 import os
+import shutil
 from main import FamilyTree
-from family_lib import Parent, Child, Partner, ParentChild
 
 
 class StartProgram:
