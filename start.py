@@ -2,6 +2,7 @@ import os
 import clear
 import shutil
 from main import FamilyTree
+from familytree_gui import FamilyTreeGUI
 
 
 class StartProgram:
