@@ -88,8 +88,6 @@ class MainProg:
         print(
             "There is a bug with PyCharm and VS22 where the clear command does not work."
             " We recommend you DO NOT run this program on the debug console but instead with cmd."
-            " "
-            " Furthermore, a bug is present with GUI when loaded, please scroll to fix."
         )
         print()
         print("Press enter to dismiss...")

@@ -590,14 +590,23 @@ class FamilyTreeGUI:
             fill=tk.X, pady=(10, 0)
         )
 
-        # Update scroll region when content size changes
-        def _configure_canvas(event):
-            """allows canvas configuration"""
+        # Force an update of the content frame's size
+        content_frame.update_idletasks()
+        
+        # Update the scroll region immediately
+        canvas.configure(scrollregion=canvas.bbox("all"))
+        
+        # Bind to both canvas and content frame configure events
+        def _on_frame_configure(event):
             canvas.configure(scrollregion=canvas.bbox("all"))
             # Update the width of the canvas window
             canvas.itemconfig(canvas_frame, width=canvas.winfo_width())
 
-        content_frame.bind("<Configure>", _configure_canvas)
+        content_frame.bind("<Configure>", _on_frame_configure)
+        canvas.bind("<Configure>", lambda e: canvas.itemconfig(canvas_frame, width=canvas.winfo_width()))
+
+        # Make sure the initial content is visible
+        canvas.yview_moveto(0)
 
         # Update mousewheel binding
         def _on_mousewheel(event):
