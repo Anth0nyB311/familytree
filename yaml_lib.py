@@ -55,116 +55,100 @@ def yaml_export(family, filename=return_save_filename()):
 def yaml_import(filename):
     """imports the yaml"""
     try:
-        print(f"Attempting to load file: {filename}")
         with open(filename, "r") as f:
             family_data = yaml.safe_load(f)
-            print(f"Loaded data length: {len(family_data) if family_data else 0}")
 
         if not family_data:
-            print(f"File empty or not found, starting with empty family.")
+            print(f"File not found, starting with empty family.")
             return []
-
         id_to_person = {}
         family = []
-        max_id = 0
 
-        # First pass: Create all person objects
         for person_dict in family_data:
-            try:
-                print(f"Processing person: {person_dict.get('name', 'Unknown')}")
-                person_type = person_dict.get("type")
-                
-                if person_type == "Parent":
-                    person = Parent(
-                        name=person_dict["name"],
-                        dob=person_dict["dob"],
-                        is_alive=person_dict["is_alive"],
-                        ethnicity=person_dict["ethnicity"],
-                    )
-                elif person_type == "Child":
-                    person = Child(
-                        name=person_dict["name"],
-                        dob=person_dict["dob"],
-                        is_alive=person_dict["is_alive"],
-                        ethnicity=person_dict["ethnicity"],
-                    )
-                elif person_type == "Partner":
-                    person = Partner(
-                        name=person_dict["name"],
-                        dob=person_dict["dob"],
-                        is_alive=person_dict["is_alive"],
-                        ethnicity=person_dict["ethnicity"],
-                    )
-                else:
-                    print(f"Unknown person type: {person_type}")
-                    continue
-
-                person.id = person_dict["id"]
-                if not person.is_alive:
-                    person.death_date = person_dict.get("death_date")
-                
-                person.children = []
-                person.partners = []
-                person.parents = []
-                person.siblings = []
-                
-                max_id = max(max_id, person.id)
-                id_to_person[person.id] = person
-                family.append(person)
-                print(f"Successfully added {person.name}")
-
-            except Exception as e:
-                print(f"Error processing person: {str(e)}")
-                continue
-
-        print(f"First pass complete. Family size: {len(family)}")
-        Person._id_counter = max_id + 1
-
-        # Second pass: Process relationships
+            person_type = person_dict.get("type", "Person")
+            if person_type == "Parent":
+                person = Parent(
+                    name=person_dict["name"],
+                    dob=person_dict["dob"],
+                    is_alive=person_dict["is_alive"],
+                    ethnicity=person_dict["ethnicity"],
+                )
+            elif person_type == "Child":
+                person = Child(
+                    name=person_dict["name"],
+                    dob=person_dict["dob"],
+                    is_alive=person_dict["is_alive"],
+                    ethnicity=person_dict["ethnicity"],
+                )
+            elif person_type == "Partner":
+                person = Partner(
+                    name=person_dict["name"],
+                    dob=person_dict["dob"],
+                    is_alive=person_dict["is_alive"],
+                    ethnicity=person_dict["ethnicity"],
+                )
+            elif person_type == "ParentChild":
+                person = ParentChild(
+                    name=person_dict["name"],
+                    dob=person_dict["dob"],
+                    is_alive=person_dict["is_alive"],
+                    ethnicity=person_dict["ethnicity"],
+                )
+            else:
+                raise ValueError(f"Unknown person type: {person_type}")
+            person.id = person_dict["id"]
+            if not person.is_alive:
+                person.death_date = person_dict.get("death_date")
+            else:
+                person.death_date = None
+            id_to_person[person.id] = person
+            family.append(person)
+        max_id = max(id_to_person.keys(), default=0)
+        if hasattr(Person, "_id_counter"):
+            Person._id_counter = max_id + 1
+        else:
+            Person._id_counter = max_id + 1
         for person_dict in family_data:
-            try:
-                person = id_to_person.get(person_dict["id"])
-                if not person:
-                    continue
+            person = id_to_person[person_dict["id"]]
+            for child_id in person_dict.get("children_ids", []):
+                child = id_to_person.get(child_id)
+                if child and child not in getattr(person, "children", []):
+                    person.children.append(child)
+                    if person not in getattr(child, "parents", []):
+                        child.parents.append(person)
+            for partner_id in person_dict.get("partners_ids", []):
+                partner = id_to_person.get(partner_id)
+                if partner and partner not in getattr(person, "partners", []):
+                    person.partners.append(partner)
+                    if person not in getattr(partner, "partners", []):
+                        partner.partners.append(person)
+            for parent_id in person_dict.get("parents_ids", []):
+                parent = id_to_person.get(parent_id)
+                if parent and parent not in getattr(person, "parents", []):
+                    person.parents.append(parent)
+                    if person not in getattr(parent, "children", []):
+                        parent.children.append(person)
+            for sibling_id in person_dict.get("siblings_ids", []):
+                sibling = id_to_person.get(sibling_id)
+                if sibling and sibling not in getattr(person, "siblings", []):
+                    person.siblings.append(sibling)
+                    if person not in getattr(sibling, "siblings", []):
+                        sibling.siblings.append(person)
 
-                print(f"Processing relationships for: {person.name}")
-                for child_id in person_dict.get("children_ids", []):
-                    child = id_to_person.get(child_id)
-                    if child and child not in person.children:
-                        person.children.append(child)
-                        if person not in child.parents:
-                            child.parents.append(person)
-
-                for partner_id in person_dict.get("partners_ids", []):
-                    partner = id_to_person.get(partner_id)
-                    if partner and partner not in person.partners:
-                        person.partners.append(partner)
-                        if person not in partner.partners:
-                            partner.partners.append(person)
-
-                for parent_id in person_dict.get("parents_ids", []):
-                    parent = id_to_person.get(parent_id)
-                    if parent and parent not in person.parents:
-                        person.parents.append(parent)
-                        if person not in parent.children:
-                            parent.children.append(person)
-
-                for sibling_id in person_dict.get("siblings_ids", []):
-                    sibling = id_to_person.get(sibling_id)
-                    if sibling and sibling not in person.siblings:
-                        person.siblings.append(sibling)
-                        if person not in sibling.siblings:
-                            sibling.siblings.append(person)
-
-            except Exception as e:
-                print(f"Error processing relationships: {str(e)}")
-                continue
-
-        print(f"Import complete. Final family size: {len(family)}")
+        print(f"{filename} was a success.")
         return family
 
+    except FileNotFoundError:
+        print(f"File not found, starting with empty family.")
+        return []
+    except yaml.YAMLError as e:
+        print(f"Error parsing the save file: {e}")
+        return []
+    except ValueError as ve:
+        print(f"Value error occured: {ve}")
+        return []
     except Exception as e:
-        print(f"Error loading family: {str(e)}")
+        print(f"Unexpected error found: {e}")
         return []
 
 if __name__ == "__main__":

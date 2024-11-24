@@ -1,26 +1,16 @@
-"""Family Tree GUI Module.
+"""Family Tree GUI Module."""
 
-This module provides the graphical user interface for managing and
-visualizing family trees. It includes functionality for creating,
-editing, and displaying family relationships.
-"""
-
-# Standard library imports
 import os
 import sys
 import io
 from collections import defaultdict
 from datetime import datetime
 from math import floor
-
-# Third-party imports
 import tkinter as tk
-from tkinter import messagebox, ttk
-
-# Local application imports
-from family_lib import Parent, Child, Partner
-from main import FamilyTree, FamilyTreeStatistics
+from tkinter import messagebox, ttk, filedialog
 import yaml_lib
+from family_lib import Parent, Child, Partner
+from main import FamilyTreeStatistics
 
 
 class FamilyTreeVisualizer:
@@ -28,13 +18,23 @@ class FamilyTreeVisualizer:
 
     def __init__(self):
         """Initialize the visualizer with grid-based layout."""
-        self.cell_width = 250
-        self.cell_height = 150
+        self.cell_width = 180
+        self.cell_height = 100
         self.node_radius = 45
+        self.base_font_size = 11  # Base font size for names
+        self.base_date_font_size = 9  # Base font size for dates
+        self.current_scale = 1.0  # Track current zoom level
         self.grid = {}
         self.positions = {}
         self.level_count = {}
-
+        self.visited = set()
+        self.margin = 20
+        self.node_colors = {
+            'bg': '#404040',
+            'outline': '#606060',
+            'text': '#ffffff',
+            'secondary_text': '#cccccc'
+        }
     def draw_tree(self, canvas, root_person):
         """Draw the family tree on the canvas.
         
@@ -46,7 +46,7 @@ class FamilyTreeVisualizer:
             return
 
         self._reset_state()
-        self._assign_grid_positions(root_person, 0, 0)
+        self._create_tree_matrix(root_person, 0, 0)
         self._calculate_dimensions(canvas)
         self._draw_tree_elements(canvas, root_person)
 
@@ -55,21 +55,89 @@ class FamilyTreeVisualizer:
         self.grid = {}
         self.positions = {}
         self.level_count = {}
+        self.visited = set()
+
+    def _create_tree_matrix(self, person, row, col):
+        """Create tree matrix using depth-first traversal with adjusted spacing.
+        
+        Args:
+            person: Person object to position
+            row: Current row in grid
+            col: Current column in grid
+        
+        Returns:
+            int: Next available column position
+        """
+        if not person or person in self.visited:
+            return col
+
+        self.visited.add(person)
+        start_col = col
+
+        # Place current person
+        while self._is_cell_occupied(row, start_col):
+            start_col += 0.5
+        self.grid[(row, start_col)] = person
+        
+        # Handle partners with increased spacing
+        partner_end_col = start_col
+        if hasattr(person, 'partners'):
+            partner_col = start_col + 0.8  # Increased from 0.4 for wider partner spacing
+            for partner in person.partners:
+                if partner not in self.visited:
+                    while self._is_cell_occupied(row, partner_col):
+                        partner_col += 0.8  # Increased partner increment
+                    self.grid[(row, partner_col)] = partner
+                    self.visited.add(partner)
+                    partner_col += 0.8
+            partner_end_col = partner_col
+
+        # Handle children with tighter spacing
+        if hasattr(person, 'children') and person.children:
+            child_row = row + 1
+            num_children = len(person.children)
+            
+            # Calculate child positioning with reduced spacing
+            parent_span = partner_end_col - start_col
+            child_spacing = max(1, parent_span / (num_children + 1))  # Reduced from 0.5 for closer siblings
+            child_start = start_col - (child_spacing * (num_children - 1) / 2)
+            
+            child_col = child_start
+            for child in person.children:
+                if child not in self.visited:
+                    next_col = self._create_tree_matrix(child, child_row, child_col)
+                    child_col = next_col + child_spacing
+
+        return max(partner_end_col, child_col if 'child_col' in locals() else start_col)
 
     def _calculate_dimensions(self, canvas):
         """Calculate and set canvas dimensions."""
         if not self.grid:
             return
 
+        # Find the extremes of the grid
         max_row = max(row for row, _ in self.grid.keys())
         max_col = max(col for _, col in self.grid.keys())
+        min_col = min(col for _, col in self.grid.keys())
         
         self._calculate_canvas_positions()
         canvas.delete("all")
         
-        canvas_width = (max_col + 2) * self.cell_width + 100
-        canvas_height = (max_row + 2) * self.cell_height + 100
-        canvas.configure(scrollregion=(0, 0, canvas_width, canvas_height))
+        # Calculate dimensions with extra padding
+        padding = 1000  # Increased padding for better visibility
+        canvas_width = (max_col - min_col + 4) * self.cell_width + padding
+        canvas_height = (max_row + 4) * self.cell_height + padding
+        
+        # Set scrollable region with extra space on all sides
+        scroll_left = -padding/2
+        scroll_top = -padding/2
+        scroll_right = canvas_width + padding/2
+        scroll_bottom = canvas_height + padding/2
+        
+        canvas.configure(scrollregion=(
+            scroll_left, scroll_top, 
+            scroll_right, scroll_bottom
+        ))
 
     def _draw_tree_elements(self, canvas, root_person):
         """Draw all tree elements.
@@ -78,324 +146,485 @@ class FamilyTreeVisualizer:
             canvas: tkinter Canvas to draw on
             root_person: Person object to use as tree root
         """
-        self._draw_connections(canvas, root_person)
+        self._draw_all_connections(canvas, root_person)
+        self._draw_all_nodes(canvas)
+
+    def _draw_all_nodes(self, canvas):
+        """Draw all nodes in the tree."""
         for person, (x, y) in self.positions.items():
             self._draw_node(canvas, person, x, y)
 
+    def _draw_all_connections(self, canvas, root_person):
+        """Draw all family connections."""
+        drawn_connections = set()
+        
+        def draw_connections(person):
+            """Recursive helper to draw connections.
+            
+            Args:
+                person: Person object to draw connections for
+            """
+            if person in drawn_connections:
+                return
+            
+            drawn_connections.add(person)
+            if person not in self.positions:
+                return
+
+            x, y = self.positions[person]
+
+            # Draw partner connections
+            if hasattr(person, 'partners'):
+                for partner in person.partners:
+                    if partner in self.positions and (partner, person) not in drawn_connections:
+                        px, py = self.positions[partner]
+                        canvas.create_line(
+                            x + self.node_radius,
+                            y,
+                            px - self.node_radius,
+                            py,
+                            fill="#E74C3C",  # Red for partner connections
+                            width=2,
+                            dash=(4, 2)
+                        )
+                        drawn_connections.add((person, partner))
+                        drawn_connections.add((partner, person))
+
+            # Draw child connections
+            if hasattr(person, 'children'):
+                for child in person.children:
+                    if child in self.positions:
+                        cx, cy = self.positions[child]
+                        canvas.create_line(
+                            x,
+                            y + self.node_radius,
+                            cx,
+                            cy - self.node_radius,
+                            fill="#27AE60",  # Green for child connections
+                            width=2,
+                            smooth=True
+                        )
+                        draw_connections(child)
+
+        draw_connections(root_person)
+
+    def _is_cell_occupied(self, row, col):
+        """Check if a grid cell is already occupied, with adjusted spacing checks.
+        
+        Args:
+            row: Grid row to check
+            col: Grid column to check (can be fractional)
+        
+        Returns:
+            bool: True if cell is occupied or too close to occupied cell
+        """
+        if (row, col) in self.grid:
+            return True
+        
+        # Check nearby positions with reduced minimum distance for siblings
+        for existing_row, existing_col in self.grid.keys():
+            if existing_row == row and abs(existing_col - col) < 0.25:  # Reduced from 0.3
+                return True
+        return False
+
+    def _calculate_canvas_positions(self):
+        """Convert grid positions to canvas coordinates."""
+        margin = 50
+        for (row, col), person in self.grid.items():
+            x = margin + (col * self.cell_width) + (self.cell_width // 2)
+            y = margin + (row * self.cell_height) + (self.cell_height // 2)
+            self.positions[person] = (x, y)
+
+    def _draw_node(self, canvas, person, x, y):
+        """Draw a single person node with scaled text size."""
+        # Draw background circle
+        canvas.create_oval(
+            x - self.node_radius,
+            y - self.node_radius,
+            x + self.node_radius,
+            y + self.node_radius,
+            fill=self.node_colors['bg'],
+            outline=self.node_colors['outline'],
+            width=2
+        )
+        
+        # Calculate scaled font sizes
+        name_font_size = max(8, int(self.base_font_size * self.current_scale))
+        date_font_size = max(6, int(self.base_date_font_size * self.current_scale))
+        
+        # Draw person's name with scaled font
+        canvas.create_text(
+            x,
+            y - 12 * self.current_scale,
+            text=person.name,
+            font=("Arial", name_font_size, "bold"),
+            fill=self.node_colors['text'],
+            anchor="center",
+            width=self.node_radius * 1.8
+        )
+        
+        # Draw birth/death years with scaled font
+        birth_year = person.dob.split('-')[0] if hasattr(person, 'dob') else '?'
+        death_year = '†' + person.death_date.split('-')[0] if hasattr(person, 'death_date') and person.death_date else ''
+        date_text = f"{birth_year}{' ' + death_year if death_year else ''}"
+        
+        canvas.create_text(
+            x,
+            y + 12 * self.current_scale,
+            text=date_text,
+            font=("Arial", date_font_size),
+            fill=self.node_colors['secondary_text'],
+            anchor="center"
+        )
+
 
 class FamilyTreeGUI:
-    """GUI interface for the Family Tree application."""
-    
-    def __init__(self):
-        """Initialize the GUI application."""
+    def __init__(self, save_file=None):
         self.root = None
         self.tree_canvas = None
         self.family_listbox = None
         self.tree_visualizer = None
         self.selected_person = None
-        self.family_tree = FamilyTree(None)  # Initialize with no save file
+        self.family = []
+        self.stats = None
         self.zoom_scale = 1.0
+        self.save_file = save_file
+        if save_file:
+            self.family = yaml_lib.yaml_import(save_file)
+            self.stats = FamilyTreeStatistics(self.family)
+        self.themes = {
+            'Dark': {
+                'bg': '#2b2b2b',
+                'button_bg': '#404040',
+                'button_fg': '#ffffff',
+                'button_active': '#505050',
+                'button_pressed': '#303030',
+                'text': '#ffffff',
+                'secondary_text': '#cccccc',
+                'listbox_bg': '#404040',
+                'listbox_fg': '#ffffff',
+                'listbox_select_bg': '#606060',
+                'node_bg': '#404040',
+                'node_outline': '#606060',
+            },
+            'Light': {
+                'bg': '#ffffff',
+                'button_bg': '#e0e0e0',
+                'button_fg': '#000000',
+                'button_active': '#d0d0d0',
+                'button_pressed': '#c0c0c0',
+                'text': '#000000',
+                'secondary_text': '#666666',
+                'listbox_bg': '#ffffff',
+                'listbox_fg': '#000000',
+                'listbox_select_bg': '#0078d7',
+                'node_bg': '#ffffff',
+                'node_outline': '#000000',
+            },
+            'Neon': {
+                'bg': '#000000',
+                'button_bg': '#000000',
+                'button_fg': '#00ffff',
+                'button_active': '#001f1f',
+                'button_pressed': '#003f3f',
+                'text': '#00ffff',
+                'secondary_text': '#0088ff',
+                'listbox_bg': '#000000',
+                'listbox_fg': '#00ffff',
+                'listbox_select_bg': '#003f3f',
+                'node_bg': '#000000',
+                'node_outline': '#00ffff',
+            }
+        }
+        self.current_theme = 'Dark'
 
     def display_family(self):
-        """Display the main family tree interface."""
-        self._setup_main_window()
-        self._create_frames()
-        self.refresh_family_list()
-        self.root.mainloop()
-
-    def _setup_main_window(self):
-        """Set up the main application window."""
         self.root = tk.Tk()
         self.root.title("Family Tree Manager")
         self.root.geometry("1400x800")
+        
+        # Configure dark theme colors
+        self.root.configure(bg='#2b2b2b')
+        style = ttk.Style()
+        
+        # Create custom theme
+        style.theme_create('darktheme', parent='alt', settings={
+            'TFrame': {
+                'configure': {'background': '#2b2b2b'}
+            },
+            'TLabel': {
+                'configure': {'background': '#2b2b2b', 'foreground': '#ffffff'}
+            },
+            'TButton': {
+                'configure': {
+                    'background': '#404040',
+                    'foreground': '#ffffff',
+                    'padding': [10, 5],
+                    'relief': 'raised'
+                },
+                'map': {
+                    'background': [
+                        ('active', '#505050'),
+                        ('pressed', '#303030'),
+                        ('!disabled', '#404040')
+                    ],
+                    'foreground': [('!disabled', '#ffffff')],
+                }
+            }
+        })
+        
+        # Use the custom theme
+        style.theme_use('darktheme')
+        
+        # Configure other widgets
+        style.configure('Treeview', 
+            background='#2b2b2b', 
+            foreground='#ffffff', 
+            fieldbackground='#2b2b2b'
+        )
+        
+        # Configure dark theme for listbox and canvas
+        self.root.option_add('*TCombobox*Listbox.background', '#404040')
+        self.root.option_add('*TCombobox*Listbox.foreground', '#ffffff')
+        
         self.tree_visualizer = FamilyTreeVisualizer()
 
-    def _create_frames(self):
-        """Create and set up main GUI frames."""
-        left_frame = self._create_left_frame()
-        right_frame = self._create_right_frame()
-        
-        left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
-        right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
-
-    def _create_left_frame(self):
-        """Create and configure the left control panel.
-        
-        Returns:
-            ttk.Frame: Configured left frame
-        """
+        # Create main frames
         left_frame = ttk.Frame(self.root, width=300)
+        left_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
         left_frame.pack_propagate(False)
 
-        self._add_file_operations(left_frame)
-        self._add_family_list(left_frame)
-        self._add_person_management(left_frame)
-        self._add_relationship_buttons(left_frame)
-        self._add_statistics_buttons(left_frame)
-        self._add_exit_button(left_frame)
+        right_frame = ttk.Frame(self.root)
+        right_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        return left_frame
+        # Add components to frames
+        self._create_left_frame_content(left_frame)
+        self._create_right_frame_content(right_frame)
 
-    def _add_file_operations(self, frame):
-        """Add file operation buttons to frame.
-        
-        Args:
-            frame: Parent frame for buttons
-        """
-        ttk.Label(
-            frame,
-            text="File Operations",
-            font=('Arial', 10, 'bold')
-        ).pack(fill=tk.X, pady=(0, 5))
-        
-        operations = [
-            ("New Family Tree", self.new_family),
-            ("Load Family Tree", self.load_family),
-            ("Save Family Tree", self.save_family)
-        ]
-        
-        for text, command in operations:
-            ttk.Button(
-                frame,
-                text=text,
-                command=command
-            ).pack(fill=tk.X)
+        # Initialize the family list
+        self.refresh_family_list()
 
-    def _add_family_list(self, frame):
-        """Add family members listbox to frame.
+        self.root.mainloop()
+
+    def _create_left_frame_content(self, frame):
+        """Create the left frame content."""
+        # Create a canvas and scrollbar for the left frame
+        canvas = tk.Canvas(frame, bg=self.themes[self.current_theme]['bg'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=canvas.yview)
         
-        Args:
-            frame: Parent frame for listbox
-        """
-        ttk.Label(
-            frame,
-            text="Family Members",
-            font=('Arial', 10, 'bold')
-        ).pack(fill=tk.X, pady=(10, 5))
+        # Create a frame inside the canvas to hold all content
+        content_frame = ttk.Frame(canvas)
         
-        self.family_listbox = tk.Listbox(frame, height=8)
+        # Configure the canvas
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Pack the scrollbar and canvas
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Add the content frame to the canvas
+        canvas_frame = canvas.create_window((0, 0), window=content_frame, anchor="nw", width=canvas.winfo_width())
+        
+        # File operations section
+        ttk.Label(content_frame, text="File Operations", font=('Arial', 10, 'bold')).pack(fill=tk.X, pady=(0, 5))
+        ttk.Button(content_frame, text="New Family Tree", command=self.new_family).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Load Family Tree", command=self.load_family).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Save Family Tree", command=self.save_family).pack(fill=tk.X)
+
+        # Zoom controls section
+        ttk.Label(content_frame, text="Zoom Controls", font=('Arial', 10, 'bold')).pack(fill=tk.X, pady=(10, 5))
+        zoom_frame = ttk.Frame(content_frame)
+        zoom_frame.pack(fill=tk.X, pady=2)
+        ttk.Button(zoom_frame, text="Zoom In (+)", command=lambda: self._canvas_zoom(1.2)).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+        ttk.Button(zoom_frame, text="Zoom Out (-)", command=lambda: self._canvas_zoom(0.8)).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+
+        # Family list section
+        ttk.Label(content_frame, text="Family Members", font=('Arial', 10, 'bold')).pack(fill=tk.X, pady=(10, 5))
+        self.family_listbox = tk.Listbox(
+            content_frame, 
+            height=8,
+            bg='#404040',
+            fg='#ffffff',
+            selectbackground='#606060',
+            selectforeground='#ffffff'
+        )
         self.family_listbox.pack(fill=tk.X)
         self.family_listbox.bind('<<ListboxSelect>>', self.on_select_person)
 
-    def _add_person_management(self, frame):
-        """Add person management buttons to frame.
-        
-        Args:
-            frame: Parent frame for buttons
-        """
-        ttk.Label(
-            frame,
-            text="Person Management",
-            font=('Arial', 10, 'bold')
-        ).pack(fill=tk.X, pady=(10, 5))
-        
-        management_buttons = [
-            ("Add Person", self.add_person_dialog),
-            ("Add Relationship", self.add_relationship_dialog)
-        ]
-        
-        for text, command in management_buttons:
-            ttk.Button(
-                frame,
-                text=text,
-                command=command
-            ).pack(fill=tk.X)
+        # Person management section
+        ttk.Label(content_frame, text="Person Management", font=('Arial', 10, 'bold')).pack(fill=tk.X, pady=(10, 5))
+        ttk.Button(content_frame, text="Add Person", command=self.add_person_dialog).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Add Relationship", command=self.add_relationship_dialog).pack(fill=tk.X)
 
-    def _add_relationship_buttons(self, frame):
-        """Add relationship viewing buttons to frame.
-        
-        Args:
-            frame: Parent frame for buttons
-        """
-        ttk.Label(
-            frame,
-            text="View Relationships",
-            font=('Arial', 10, 'bold')
-        ).pack(fill=tk.X, pady=(10, 5))
-        
-        relationships = ["Parents", "Siblings", "Children", "Extended Family"]
-        
-        for rel_type in relationships:
-            ttk.Button(
-                frame,
-                text=f"Show {rel_type}",
-                command=lambda t=rel_type: self.show_relationships(
-                    self.selected_person,
-                    t
-                )
-            ).pack(fill=tk.X)
+        # Relationship viewing section
+        ttk.Label(content_frame, text="View Relationships", font=('Arial', 10, 'bold')).pack(fill=tk.X, pady=(10, 5))
+        ttk.Button(content_frame, text="Show Parents", command=lambda: self.show_relationships(self.selected_person, "Parents")).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Show Grandparents", command=lambda: self.show_relationships(self.selected_person, "Grandparents")).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Show Siblings", command=lambda: self.show_relationships(self.selected_person, "Siblings")).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Show Children", command=lambda: self.show_relationships(self.selected_person, "Children")).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Show Grandchildren", command=lambda: self.show_relationships(self.selected_person, "Grandchildren")).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Show Immediate Family", command=lambda: self.show_relationships(self.selected_person, "Immediate Family")).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Show Extended Family", command=lambda: self.show_relationships(self.selected_person, "Extended Family")).pack(fill=tk.X)
 
-    def _add_statistics_buttons(self, frame):
-        """Add statistics buttons to frame.
-        
-        Args:
-            frame: Parent frame for buttons
-        """
-        ttk.Label(
-            frame,
-            text="Statistics",
-            font=('Arial', 10, 'bold')
-        ).pack(fill=tk.X, pady=(10, 5))
-        
-        stats = [
-            "Average Age",
-            "Death Age",
-            "Children Count",
-            "Average Children"
-        ]
-        
-        for stat_type in stats:
-            ttk.Button(
-                frame,
-                text=stat_type,
-                command=lambda t=stat_type: self.show_statistics(t)
-            ).pack(fill=tk.X)
+        # Statistics section
+        ttk.Label(content_frame, text="Statistics", font=('Arial', 10, 'bold')).pack(fill=tk.X, pady=(10, 5))
+        ttk.Button(content_frame, text="Average Age", command=lambda: self.show_statistics("Average Age")).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Death Age", command=lambda: self.show_statistics("Death Age")).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Children Count", command=lambda: self.show_statistics("Children Count")).pack(fill=tk.X)
+        ttk.Button(content_frame, text="Average Children", command=lambda: self.show_statistics("Average Children")).pack(fill=tk.X)
 
-    def _create_right_frame(self):
-        """Create and configure the right frame with canvas.
+        # Exit button
+        ttk.Button(content_frame, text="Exit", command=self.exit_program).pack(fill=tk.X, pady=(10, 0))
+
+        # Update scroll region when content size changes
+        def _configure_canvas(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            # Update the width of the canvas window
+            canvas.itemconfig(canvas_frame, width=canvas.winfo_width())
+
+        content_frame.bind('<Configure>', _configure_canvas)
         
-        Returns:
-            ttk.Frame: Configured right frame
-        """
-        right_frame = ttk.Frame(self.root)
-        canvas_container = ttk.Frame(right_frame)
+        # Bind mouse wheel to scroll
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # Bind frame resizing
+        def _on_frame_configure(event):
+            canvas.configure(width=frame.winfo_width()-scrollbar.winfo_width())
+            
+        frame.bind('<Configure>', _on_frame_configure)
+
+        # Add theme selector at the top
+        self.theme_label = ttk.Label(content_frame, text="Theme", font=('Arial', 10, 'bold'))
+        self.theme_label.pack(fill=tk.X, pady=(0, 5))
+        self.theme_frame = ttk.Frame(content_frame)
+        self.theme_frame.pack(fill=tk.X, pady=2)
+        for theme in self.themes.keys():
+            ttk.Button(
+                self.theme_frame, 
+                text=theme, 
+                command=lambda t=theme: self.apply_theme(t)
+            ).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=2)
+
+    def _create_right_frame_content(self, frame):
+        canvas_container = ttk.Frame(frame)
         canvas_container.pack(fill=tk.BOTH, expand=True)
-        
-        # Configure grid weights
         canvas_container.grid_rowconfigure(0, weight=1)
         canvas_container.grid_columnconfigure(0, weight=1)
-        
-        self._setup_canvas(canvas_container)
-        return right_frame
 
-    def _setup_canvas(self, container):
-        """Setup the tree canvas with scrollbars.
-        
-        Args:
-            container: Parent frame for canvas
-        """
-        self.tree_canvas = tk.Canvas(container, bg='white')
-        v_scrollbar = ttk.Scrollbar(
-            container,
-            orient="vertical",
-            command=self.tree_canvas.yview
+        self.tree_canvas = tk.Canvas(
+            canvas_container, 
+            bg='#2b2b2b',
+            highlightthickness=0
         )
-        h_scrollbar = ttk.Scrollbar(
-            container,
-            orient="horizontal",
-            command=self.tree_canvas.xview
-        )
-        
-        # Configure scrolling
-        self.tree_canvas.configure(
-            yscrollcommand=v_scrollbar.set,
-            xscrollcommand=h_scrollbar.set
-        )
-        
-        # Grid layout
+        v_scrollbar = ttk.Scrollbar(canvas_container, orient="vertical", command=self.tree_canvas.yview)
+        h_scrollbar = ttk.Scrollbar(canvas_container, orient="horizontal", command=self.tree_canvas.xview)
+
+        self.tree_canvas.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+
         self.tree_canvas.grid(row=0, column=0, sticky="nsew")
         v_scrollbar.grid(row=0, column=1, sticky="ns")
         h_scrollbar.grid(row=1, column=0, sticky="ew")
-        
-        # Bind mouse wheel
+
         self.tree_canvas.bind('<MouseWheel>', self._on_mousewheel_y)
         self.tree_canvas.bind('<Shift-MouseWheel>', self._on_mousewheel_x)
 
     def on_select_person(self, event):
-        """Handle person selection from listbox.
-        
-        Args:
-            event: Selection event
-        """
         selection = self.family_listbox.curselection()
         if selection:
             try:
                 index = selection[0]
-                self.selected_person = self.family_tree.family[index]
-                self.tree_visualizer.draw_tree(
-                    self.tree_canvas,
-                    self.selected_person
-                )
+                self.selected_person = self.family[index]
+                self.tree_visualizer.draw_tree(self.tree_canvas, self.selected_person)
             except Exception as e:
                 print(f"Debug - Selection error: {str(e)}")
                 self.selected_person = None
 
     def add_person_dialog(self):
-        """Display dialog for adding a new person."""
         dialog = tk.Toplevel(self.root)
         dialog.title("Add Person")
         
         form_frame = ttk.Frame(dialog, padding="10")
         form_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Create form fields
-        fields = self._create_person_form_fields(form_frame)
-        
-        # Add buttons
-        self._add_dialog_buttons(
-            form_frame,
-            dialog,
-            lambda: self._submit_person_form(fields, dialog)
-        )
 
-    def _create_person_form_fields(self, frame):
-        """Create form fields for person dialog.
-        
-        Args:
-            frame: Parent frame for form fields
-            
-        Returns:
-            dict: Dictionary of form field variables
-        """
-        fields = {}
-        
         # Person type selection
-        fields['type'] = tk.StringVar(value="Parent")
-        ttk.Label(frame, text="Person Type:").pack(fill=tk.X)
-        for type_name in ["Parent", "Child", "Partner"]:
-            ttk.Radiobutton(
-                frame,
-                text=type_name,
-                variable=fields['type'],
-                value=type_name
-            ).pack()
+        ttk.Label(form_frame, text="Person Type:").pack(fill=tk.X)
+        person_type = tk.StringVar(value="Parent")
+        ttk.Radiobutton(form_frame, text="Parent", variable=person_type, value="Parent").pack()
+        ttk.Radiobutton(form_frame, text="Child", variable=person_type, value="Child").pack()
+        ttk.Radiobutton(form_frame, text="Partner", variable=person_type, value="Partner").pack()
 
         # Name entry
-        ttk.Label(frame, text="Name:").pack(fill=tk.X)
-        fields['name'] = ttk.Entry(frame)
-        fields['name'].pack(fill=tk.X)
-        
-        return fields
+        ttk.Label(form_frame, text="Name:").pack(fill=tk.X)
+        name_entry = ttk.Entry(form_frame)
+        name_entry.pack(fill=tk.X)
 
-    def _submit_person_form(self, fields, dialog):
-        """Handle person form submission.
-        
-        Args:
-            fields: Dictionary of form field variables
-            dialog: Dialog window to close on success
-        """
-        try:
-            name = fields['name'].get().strip()
-            person_type = fields['type'].get()
-            
-            if not name:
-                raise ValueError("Name is required")
-            
-            # Use FamilyTree's add_person method
-            command = f"ADD {person_type} '{name}'"
-            self.family_tree.add_remove_person(True, command)
-            
-            dialog.destroy()
-            self.refresh_family_list()
-            messagebox.showinfo(
-                "Success",
-                f"Added {person_type} {name} to family tree!"
-            )
-            
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to add person: {str(e)}")
+        # Ethnicity entry
+        ttk.Label(form_frame, text="Ethnicity:").pack(fill=tk.X)
+        ethnicity_entry = ttk.Entry(form_frame)
+        ethnicity_entry.pack(fill=tk.X)
+
+        # Date of birth
+        ttk.Label(form_frame, text="Date of Birth (YYYY-MM-DD):").pack(fill=tk.X)
+        dob_entry = ttk.Entry(form_frame)
+        dob_entry.pack(fill=tk.X)
+
+        # Living status
+        is_alive_var = tk.BooleanVar(value=True)
+        death_entry = ttk.Entry(form_frame)
+
+        def toggle_death_date():
+            if is_alive_var.get():
+                death_entry.configure(state='disabled')
+                death_entry.delete(0, tk.END)
+            else:
+                death_entry.configure(state='normal')
+
+        alive_check = ttk.Checkbutton(form_frame, text="Is Alive", 
+                                    variable=is_alive_var, 
+                                    command=toggle_death_date)
+        alive_check.pack(fill=tk.X)
+
+        # Death date
+        ttk.Label(form_frame, text="Date of Death (YYYY-MM-DD):").pack(fill=tk.X)
+        death_entry.pack(fill=tk.X)
+        death_entry.configure(state='disabled')
+
+        def validate_and_submit():
+            try:
+                name = name_entry.get().strip()
+                if not name:
+                    raise ValueError("Name is required")
+                ethnicity = ethnicity_entry.get().strip()
+                if not ethnicity:
+                    raise ValueError("Ethnicity is required")
+                person_class = {
+                    "Parent": Parent,
+                    "Child": Child,
+                    "Partner": Partner
+                }[person_type.get()]
+                dob = dob_entry.get().strip() or None
+                death_date = death_entry.get().strip() if not is_alive_var.get() else None
+                new_person = person_class(
+                    name=name,
+                    dob=dob,
+                    is_alive=is_alive_var.get(),
+                    death_date=death_date,
+                    ethnicity=ethnicity
+                )
+                self.family.append(new_person)
+                dialog.destroy()
+                self.refresh_family_list()
+                messagebox.showinfo("Success", f"Added {person_type.get()} {name} to family tree!")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to add person: {str(e)}")
+
+        ttk.Button(form_frame, text="Add Person", command=validate_and_submit).pack(pady=10)
+        ttk.Button(form_frame, text="Cancel", command=dialog.destroy).pack()
+
     def add_relationship_dialog(self):
-        """Display dialog for adding relationships."""
         if not self.selected_person:
             messagebox.showerror("Error", "Please select a person first!")
             return
@@ -405,203 +634,307 @@ class FamilyTreeGUI:
         
         form_frame = ttk.Frame(dialog, padding="10")
         form_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Create relationship form
-        fields = self._create_relationship_form(form_frame)
-        
-        # Add buttons
-        self._add_dialog_buttons(
-            form_frame,
-            dialog,
-            lambda: self._submit_relationship_form(fields, dialog)
-        )
 
-    def _create_relationship_form(self, frame):
-        """Create form fields for relationship dialog.
-        
-        Args:
-            frame: Parent frame for form fields
-            
-        Returns:
-            dict: Dictionary of form field variables
-        """
-        fields = {}
-        
-        ttk.Label(
-            frame,
-            text=f"Add relationship for: {self.selected_person.name}"
-        ).pack(fill=tk.X)
-        
+        ttk.Label(form_frame, text=f"Add relationship for: {self.selected_person.name}").pack(fill=tk.X)
+
         # Relationship type selection
-        fields['type'] = tk.StringVar(value="Parent")
-        ttk.Label(frame, text="Relationship Type:").pack(fill=tk.X)
-        for rel_type in ["Parent", "Child", "Partner"]:
-            ttk.Radiobutton(
-                frame,
-                text=rel_type,
-                variable=fields['type'],
-                value=rel_type
-            ).pack()
+        ttk.Label(form_frame, text="Relationship Type:").pack(fill=tk.X)
+        rel_type = tk.StringVar(value="Parent")
+        ttk.Radiobutton(form_frame, text="Parent", variable=rel_type, value="Parent").pack()
+        ttk.Radiobutton(form_frame, text="Child", variable=rel_type, value="Child").pack()
+        ttk.Radiobutton(form_frame, text="Partner", variable=rel_type, value="Partner").pack()
 
         # Related person selection
-        ttk.Label(frame, text="Related Person:").pack(fill=tk.X)
-        fields['related_person'] = tk.StringVar()
-        person_list = ttk.Combobox(
-            frame,
-            textvariable=fields['related_person']
-        )
-        person_list['values'] = [
-            person.name for person in self.family_tree.family
-            if person != self.selected_person
-        ]
+        ttk.Label(form_frame, text="Related Person:").pack(fill=tk.X)
+        related_person = tk.StringVar()
+        person_list = ttk.Combobox(form_frame, textvariable=related_person)
+        person_list['values'] = [person.name for person in self.family if person != self.selected_person]
         person_list.pack(fill=tk.X)
-        
-        return fields
 
-    def _submit_relationship_form(self, fields, dialog):
-        """Handle relationship form submission.
-        
-        Args:
-            fields: Dictionary of form field variables
-            dialog: Dialog window to close on success
-        """
+        def add_relationship():
+            try:
+                if not related_person.get():
+                    raise ValueError("Please select a related person")
+
+                related = next(p for p in self.family if p.name == related_person.get())
+                relationship_type = rel_type.get()
+
+                if relationship_type == "Parent":
+                    self.selected_person.add_parent(related)
+                elif relationship_type == "Child":
+                    self.selected_person.add_child(related)
+                elif relationship_type == "Partner":
+                    self.selected_person.add_partner(related)
+
+                dialog.destroy()
+                self.refresh_family_list()
+                messagebox.showinfo("Success", "Relationship added successfully!")
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to add relationship: {str(e)}")
+
+        ttk.Button(form_frame, text="Add Relationship", command=add_relationship).pack(pady=10)
+        ttk.Button(form_frame, text="Cancel", command=dialog.destroy).pack()
+
+    def show_relationships(self, person, relationship_type):
+        if not person:
+            messagebox.showerror("Error", "Please select a person first!")
+            return
+
         try:
-            related_person = fields['related_person'].get()
-            rel_type = fields['type'].get()
+            message = f"{relationship_type} of {person.name}:\n\n"
             
-            if not related_person:
-                raise ValueError("Please select a related person")
-            
-            # Use FamilyTree's add_relationship method
-            command = (
-                f"ADD RELATIONSHIP '{self.selected_person.name}' "
-                f"TO '{related_person}'"
-            )
-            self.family_tree.add_remove_relationship(True, command)
-            
-            dialog.destroy()
-            self.refresh_family_list()
-            messagebox.showinfo(
-                "Success",
-                "Relationship added successfully!"
-            )
-            
-        except Exception as e:
-            messagebox.showerror("Error", f"Failed to add relationship: {str(e)}")
-
-    def _add_dialog_buttons(self, frame, dialog, submit_command):
-        """Add standard dialog buttons.
-        
-        Args:
-            frame: Parent frame for buttons
-            dialog: Dialog window to close on cancel
-            submit_command: Function to call on submit
-        """
-        button_frame = ttk.Frame(frame)
-        button_frame.pack(fill=tk.X, pady=(10, 0))
-        
-        ttk.Button(
-            button_frame,
-            text="Submit",
-            command=submit_command
-        ).pack(side=tk.LEFT, padx=5)
-        
-        ttk.Button(
-            button_frame,
-            text="Cancel",
-            command=dialog.destroy
-        ).pack(side=tk.LEFT)
-
-    def show_birthdays(self):
-        """Display birthdays for all family members."""
-        try:
-            output = io.StringIO()
-            sys.stdout = output
-            
-            self.family_tree.get_birthdays("ALLBIRTHDAYS")
-            
-            sys.stdout = sys.__stdout__
-            message = output.getvalue()
-            output.close()
-            
-            if message.strip():
-                messagebox.showinfo("Birthdays", message)
+            if relationship_type == "Parents":
+                relatives = person.parents
+            elif relationship_type == "Grandparents":
+                relatives = self.stats.get_grandparents(person)
+            elif relationship_type == "Children":
+                relatives = person.children if hasattr(person, 'children') else []
+            elif relationship_type == "Grandchildren":
+                relatives = self.stats.get_grandchildren(person)
+            elif relationship_type == "Siblings":
+                # Get siblings through shared parents
+                siblings = set()
+                if hasattr(person, 'parents'):
+                    for parent in person.parents:
+                        for child in parent.children:
+                            if child != person:  # Don't include self
+                                siblings.add(child)
+                relatives = list(siblings)
+            elif relationship_type == "Immediate Family":
+                relatives = list(self.stats.get_immediate_family(person))
+            elif relationship_type == "Extended Family":
+                # Get all extended family members using stats methods
+                extended_family = set()
+                extended_family.update(self.stats.get_grandparents(person))
+                extended_family.update(self.stats.get_grandchildren(person))
+                extended_family.update(self.stats.get_aunts_uncles(person))
+                extended_family.update(self.stats.get_nieces_nephews(person))
+                extended_family.update(self.stats.get_cousins(person))
+                relatives = list(extended_family)
             else:
-                messagebox.showinfo("Birthdays", "No birthdays recorded")
-                
+                relatives = []
+
+            if relatives:
+                for relative in relatives:
+                    message += f"- {relative.name}\n"
+            else:
+                message += "None found"
+
+            messagebox.showinfo(relationship_type, message)
+
         except Exception as e:
-            sys.stdout = sys.__stdout__
-            messagebox.showerror("Error", f"Failed to get birthdays: {str(e)}")
+            messagebox.showerror("Error", f"Failed to get relationships: {str(e)}")
+
+    def show_statistics(self, stat_type):
+        try:
+            if stat_type == "Average Age":
+                avg_age = self.stats.calc_avage()
+                if avg_age is not None:
+                    messagebox.showinfo("Statistics", f"Average age: {avg_age:.1f} years")
+                else:
+                    messagebox.showinfo("Statistics", "No age data available")
+
+            elif stat_type == "Death Age":
+                avg_death_age = self.stats.calc_davage()
+                if avg_death_age is not None:
+                    messagebox.showinfo("Statistics", f"Average age at death: {avg_death_age:.1f} years")
+                else:
+                    messagebox.showinfo("Statistics", "No death age data available")
+
+            elif stat_type == "Children Count":
+                message = "Individual Child Count:\n\n"
+                has_parents = False
+                for person in self.family:
+                    if hasattr(person, 'children'):
+                        child_count = len(person.children)
+                        message += f"{person.name} : {child_count} child{'ren' if child_count != 1 else ''}\n"
+                        has_parents = True
+                if not has_parents:
+                    message = "No parents found in the family tree."
+                messagebox.showinfo("Children Count", message)
+
+            elif stat_type == "Average Children":
+                total_children = 0
+                parents = 0
+                for person in self.family:
+                    if hasattr(person, 'children'):
+                        parents += 1
+                        total_children += len(person.children)
+                if parents > 0:
+                    avg = total_children / parents
+                    messagebox.showinfo("Statistics", f"Average children per parent: {avg:.2f}")
+                else:
+                    messagebox.showinfo("Statistics", "No parents found in the family tree")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to calculate {stat_type}: {str(e)}")
 
     def save_family(self):
-        """Save the family tree to file."""
         try:
-            self.family_tree.save_family()
+            yaml_lib.yaml_export(self.family)
             messagebox.showinfo("Success", "Family tree saved successfully!")
         except Exception as e:
-            messagebox.showerror(
-                "Error",
-                f"Failed to save family tree: {str(e)}"
-            )
+            messagebox.showerror("Error", f"Failed to save family tree: {str(e)}")
 
     def load_family(self):
-        """Load a family tree from file."""
         try:
-            self.family_tree.load_family()
-            self.refresh_family_list()
-            messagebox.showinfo("Success", "Family tree loaded successfully!")
-        except Exception as e:
-            messagebox.showerror(
-                "Error",
-                f"Failed to load family tree: {str(e)}"
+            # Open file dialog for selecting a YAML file
+            file_path = filedialog.askopenfilename(
+                initialdir="saves",
+                title="Select Family Tree File",
+                filetypes=[("YAML files", "*.yaml")]
             )
+            
+            # Only proceed if user selected a file
+            if file_path:
+                self.family = yaml_lib.yaml_import(file_path)
+                self.stats = FamilyTreeStatistics(self.family)
+                self.refresh_family_list()
+                messagebox.showinfo("Success", "Family tree loaded successfully!")
+            else:
+                return  # User cancelled file selection
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load family tree: {str(e)}")
 
     def new_family(self):
-        """Create a new empty family tree."""
-        if messagebox.askyesno(
-            "New Family Tree",
-            "Are you sure you want to create a new family tree? "
-            "Any unsaved changes will be lost."
-        ):
-            try:
-                self.family_tree.new_family()
-                self.refresh_family_list()
-                messagebox.showinfo("Success", "New family tree created!")
-            except Exception as e:
-                messagebox.showerror(
-                    "Error",
-                    f"Failed to create new family tree: {str(e)}"
-                )
+        if messagebox.askyesno("New Family Tree", "Are you sure you want to create a new family tree? Any unsaved changes will be lost."):
+            self.family = []
+            self.stats = FamilyTreeStatistics(self.family)
+            self.refresh_family_list()
+            messagebox.showinfo("Success", "New family tree created!")
 
     def refresh_family_list(self):
-        """Update the family members listbox."""
+        """Refresh the family list display, sorted by date of birth."""
         self.family_listbox.delete(0, tk.END)
-        for person in self.family_tree.family:
-            self.family_listbox.insert(tk.END, person.name)
+        
+        # Sort family by date of birth
+        sorted_family = sorted(self.family, 
+                             key=lambda person: person.dob if hasattr(person, 'dob') else '9999-99-99')
+        
+        # Update the family list to maintain the sorted order
+        self.family = sorted_family
+        
+        # Display sorted list
+        for person in self.family:
+            # Display birth date alongside name if available
+            display_text = f"{person.name}"
+            if hasattr(person, 'dob') and person.dob:
+                display_text += f" ({person.dob})"
+            self.family_listbox.insert(tk.END, display_text)
+        
+        # Select first person and display their tree
+        if self.family:
+            self.family_listbox.select_set(0)
+            self.selected_person = self.family[0]
+            self.tree_visualizer.draw_tree(self.tree_canvas, self.selected_person)
 
     def exit_program(self):
-        """Handle program exit with save option."""
         if messagebox.askyesno("Exit", "Do you want to save before exiting?"):
             self.save_family()
         self.root.quit()
 
     def _on_mousewheel_y(self, event):
-        """Handle vertical scrolling.
-        
-        Args:
-            event: Mouse wheel event
-        """
         self.tree_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
 
     def _on_mousewheel_x(self, event):
-        """Handle horizontal scrolling.
-        
-        Args:
-            event: Mouse wheel event
-        """
         self.tree_canvas.xview_scroll(int(-1 * (event.delta / 120)), "units")
+
+    def _canvas_zoom(self, factor):
+        """Apply zoom while maintaining center."""
+        if not self.selected_person:
+            return
+
+        # Store current view center
+        canvas_width = self.tree_canvas.winfo_width()
+        canvas_height = self.tree_canvas.winfo_height()
+        scroll_x = self.tree_canvas.xview()
+        scroll_y = self.tree_canvas.yview()
+        center_x = (scroll_x[0] + scroll_x[1]) / 2
+        center_y = (scroll_y[0] + scroll_y[1]) / 2
+
+        # Update visualizer dimensions
+        self.tree_visualizer.cell_width = int(self.tree_visualizer.cell_width * factor)
+        self.tree_visualizer.cell_height = int(self.tree_visualizer.cell_height * factor)
+        self.tree_visualizer.node_radius = int(self.tree_visualizer.node_radius * factor)
+        self.tree_visualizer.current_scale *= factor
+        
+        # Redraw tree
+        self.tree_visualizer.draw_tree(self.tree_canvas, self.selected_person)
+
+        # Restore view center
+        self.tree_canvas.update_idletasks()
+        self.tree_canvas.xview_moveto(center_x - (canvas_width / (2 * self.tree_canvas.winfo_width())))
+        self.tree_canvas.yview_moveto(center_y - (canvas_height / (2 * self.tree_canvas.winfo_height())))
+
+    def apply_theme(self, theme_name):
+        # Hide theme selection UI
+        self.theme_label.pack_forget()
+        self.theme_frame.pack_forget()
+        
+        theme = self.themes[theme_name]
+        self.current_theme = theme_name
+        
+        # Configure root and style
+        self.root.configure(bg=theme['bg'])
+        style = ttk.Style()
+        
+        # Create/update theme
+        style.theme_create('customtheme', parent='alt', settings={
+            'TFrame': {
+                'configure': {'background': theme['bg']}
+            },
+            'TLabel': {
+                'configure': {'background': theme['bg'], 'foreground': theme['text']}
+            },
+            'TButton': {
+                'configure': {
+                    'background': theme['button_bg'],
+                    'foreground': theme['button_fg'],
+                    'padding': [10, 5],
+                    'relief': 'raised'
+                },
+                'map': {
+                    'background': [
+                        ('active', theme['button_active']),
+                        ('pressed', theme['button_pressed']),
+                        ('!disabled', theme['button_bg'])
+                    ],
+                    'foreground': [('!disabled', theme['button_fg'])],
+                }
+            }
+        })
+        
+        style.theme_use('customtheme')
+        
+        # Update listbox colors
+        if hasattr(self, 'family_listbox'):
+            self.family_listbox.configure(
+                bg=theme['listbox_bg'],
+                fg=theme['listbox_fg'],
+                selectbackground=theme['listbox_select_bg'],
+                selectforeground=theme['button_fg']
+            )
+        
+        # Update canvas colors
+        if hasattr(self, 'tree_canvas'):
+            self.tree_canvas.configure(bg=theme['bg'])
+        
+        # Update tree visualizer colors if it exists
+        if hasattr(self, 'tree_visualizer'):
+            self.tree_visualizer.node_colors = {
+                'bg': theme['node_bg'],
+                'outline': theme['node_outline'],
+                'text': theme['text'],
+                'secondary_text': theme['secondary_text']
+            }
+            # Redraw tree if there's a selected person
+            if self.selected_person:
+                self.tree_visualizer.draw_tree(self.tree_canvas, self.selected_person)
 
 
 if __name__ == "__main__":
     gui = FamilyTreeGUI()
     gui.display_family()
+
