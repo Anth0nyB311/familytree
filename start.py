@@ -79,6 +79,7 @@ class StartProgram:
                     exit()
                 else:
                     print("Sorry, I didn't understand the input.")
+          
             except ValueError:
                 print("Invalid input. Please enter a numerical value.")
 
