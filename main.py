@@ -33,7 +33,7 @@ class FamilyTree:
         |
         --> CHILD/PARENT/PARTNER
             This will add a new person into the family, depending on what role you chose for them.
-            Use Case --> ADD CHILD ''Jack'', ADD PARENT ''Smith'', ADD PARENT 'Mary'
+            Use Case --> ADD CHILD 'Jack', ADD PARENT 'Smith', ADD PARENT 'Mary'
         |
         --> RELATIONSHIP
             This will help to bind relationships between family members.

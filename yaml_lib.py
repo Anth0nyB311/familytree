@@ -152,4 +152,4 @@ def yaml_import(filename):
         return []
 
 if __name__ == "__main__":
-    subprocess.run([sys.executable, "start.py"])
+    subprocess.run([sys.executable, "start.py"],check=True)
