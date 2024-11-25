@@ -1526,8 +1526,30 @@ class FamilyTreeGUI:
             return
 
         try:
-            # Remove all relationships first
-            self.stats.remove_all_relationships(self.selected_person)
+            # Remove all relationships
+            # Remove from parents' children lists
+            if hasattr(self.selected_person, "parents"):
+                for parent in self.selected_person.parents[:]:  # Use slice to avoid modification during iteration
+                    if hasattr(parent, "children"):
+                        parent.children.remove(self.selected_person)
+
+            # Remove from children's parent lists
+            if hasattr(self.selected_person, "children"):
+                for child in self.selected_person.children[:]:
+                    if hasattr(child, "parents"):
+                        child.parents.remove(self.selected_person)
+
+            # Remove from siblings lists
+            if hasattr(self.selected_person, "siblings"):
+                for sibling in self.selected_person.siblings[:]:
+                    if hasattr(sibling, "siblings"):
+                        sibling.siblings.remove(self.selected_person)
+
+            # Remove from partners lists
+            if hasattr(self.selected_person, "partners"):
+                for partner in self.selected_person.partners[:]:
+                    if hasattr(partner, "partners"):
+                        partner.partners.remove(self.selected_person)
             
             # Remove person from family
             self.family.remove(self.selected_person)
