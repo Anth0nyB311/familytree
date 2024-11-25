@@ -903,7 +903,9 @@ class FamilyTreeGUI:
                 extended_family.update(self.stats.get_aunts_uncles(person))
                 extended_family.update(self.stats.get_nieces_nephews(person))
                 extended_family.update(self.stats.get_cousins(person))
-                relatives = list(extended_family)
+                immediate_family = list(self.stats.get_immediate_family(person, True))
+                extended_family.difference_update(immediate_family)
+                relatives = list(immediate_family) + list(extended_family)
             else:
                 relatives = []
 
