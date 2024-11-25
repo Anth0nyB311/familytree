@@ -503,6 +503,12 @@ class FamilyTreeGUI:
         ttk.Button(
             content_frame, text="Add Relationship", command=self.add_relationship_dialog
         ).pack(fill=tk.X)
+        ttk.Button(
+            content_frame, text="Remove Relationship", command=self.remove_relationship_dialog
+        ).pack(fill=tk.X)
+        ttk.Button(
+            content_frame, text="Remove Person", command=self.remove_person_dialog
+        ).pack(fill=tk.X)
 
         # Relationship viewing section
         ttk.Label(
@@ -839,6 +845,9 @@ class FamilyTreeGUI:
         ttk.Radiobutton(
             form_frame, text="Partner", variable=rel_type, value="Partner"
         ).pack()
+        ttk.Radiobutton(
+            form_frame, text="Sibling", variable=rel_type, value="Sibling"
+        ).pack()
 
         # Related person selection
         ttk.Label(form_frame, text="Related Person:").pack(fill=tk.X)
@@ -859,11 +868,13 @@ class FamilyTreeGUI:
                 relationship_type = rel_type.get()
 
                 if relationship_type == "Parent":
-                    self.selected_person.add_parent(related)
+                    self.selected_person.add_person(related)
                 elif relationship_type == "Child":
-                    self.selected_person.add_child(related)
+                    related.add_person(self.selected_person)
                 elif relationship_type == "Partner":
                     self.selected_person.add_partner(related)
+                elif relationship_type == "Sibling":
+                    self.selected_person.add_sibling(related)
 
                 dialog.destroy()
                 self.refresh_family_list()
@@ -875,6 +886,143 @@ class FamilyTreeGUI:
         ttk.Button(form_frame, text="Add Relationship", command=add_relationship).pack(
             pady=10
         )
+        ttk.Button(form_frame, text="Cancel", command=dialog.destroy).pack()
+
+    def remove_relationship_dialog(self):
+        """Dialog to remove a relationship between two people"""
+        if not self.selected_person:
+            messagebox.showerror("Error", "Please select a person first!")
+            return
+
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Remove Relationship")
+
+        form_frame = ttk.Frame(dialog, padding="10")
+        form_frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(
+            form_frame, text=f"Remove relationship for: {self.selected_person.name}"
+        ).pack(fill=tk.X)
+
+        # Related person selection
+        ttk.Label(form_frame, text="Related Person:").pack(fill=tk.X)
+        related_person = tk.StringVar()
+        person_list = ttk.Combobox(form_frame, textvariable=related_person)
+        person_list["values"] = [
+            person.name for person in self.family if person != self.selected_person
+        ]
+        person_list.pack(fill=tk.X)
+
+        def get_relationships(per1, per2):
+            """Get list of existing relationships between two people"""
+            relationships = []
+            
+            # Check parent-child relationships
+            if hasattr(per1, "children") and per2 in per1.children:
+                relationships.append({
+                    "description": f"{per1.name} is the parent of {per2.name}",
+                    "type": "parent-child"
+                })
+            if hasattr(per2, "children") and per1 in per2.children:
+                relationships.append({
+                    "description": f"{per2.name} is the parent of {per1.name}",
+                    "type": "child-parent"
+                })
+            
+            # Check sibling relationships
+            if hasattr(per1, "siblings") and per2 in per1.siblings:
+                relationships.append({
+                    "description": f"{per1.name} and {per2.name} are siblings",
+                    "type": "sibling"
+                })
+            
+            # Check partner relationships
+            if hasattr(per1, "partners") and per2 in per1.partners:
+                relationships.append({
+                    "description": f"{per1.name} and {per2.name} are partners",
+                    "type": "partner"
+                })
+            
+            return relationships
+
+        def remove_relationship():
+            """Remove the relationship between selected persons"""
+            try:
+                if not related_person.get():
+                    raise ValueError("Please select a related person")
+
+                related = next(p for p in self.family if p.name == related_person.get())
+                relationships = get_relationships(self.selected_person, related)
+                
+                if not relationships:
+                    messagebox.showinfo(
+                        "Info", 
+                        f"No relationships found between {self.selected_person.name} and {related.name}."
+                    )
+                    return
+
+                # Create relationship selection dialog
+                rel_dialog = tk.Toplevel(dialog)
+                rel_dialog.title("Select Relationship to Remove")
+                
+                ttk.Label(
+                    rel_dialog, 
+                    text="Choose which relationship to remove:"
+                ).pack(fill=tk.X, pady=5)
+
+                rel_var = tk.StringVar()
+                for rel in relationships:
+                    ttk.Radiobutton(
+                        rel_dialog,
+                        text=rel["description"],
+                        variable=rel_var,
+                        value=rel["description"]
+                    ).pack(fill=tk.X)
+
+                def confirm_remove():
+                    selected = rel_var.get()
+                    if not selected:
+                        messagebox.showerror("Error", "Please select a relationship to remove")
+                        return
+                    
+                    # Find selected relationship
+                    rel_type = next(rel["type"] for rel in relationships if rel["description"] == selected)
+                    
+                    # Remove the relationship based on type
+                    if rel_type == "parent-child":
+                        self.selected_person.children.remove(related)
+                        if hasattr(related, "parents"):
+                            related.parents.remove(self.selected_person)
+                    elif rel_type == "child-parent":
+                        related.children.remove(self.selected_person)
+                        if hasattr(self.selected_person, "parents"):
+                            self.selected_person.parents.remove(related)
+                    elif rel_type == "sibling":
+                        if hasattr(self.selected_person, "siblings"):
+                            self.selected_person.siblings.remove(related)
+                        if hasattr(related, "siblings"):
+                            related.siblings.remove(self.selected_person)
+                    elif rel_type == "partner":
+                        if hasattr(self.selected_person, "partners"):
+                            self.selected_person.partners.remove(related)
+                        if hasattr(related, "partners"):
+                            related.partners.remove(self.selected_person)
+                    
+                    messagebox.showinfo("Success", "Relationship removed successfully!")
+                    rel_dialog.destroy()
+                    dialog.destroy()
+                    self.refresh_family_list()
+
+                ttk.Button(
+                    rel_dialog, 
+                    text="Remove Selected Relationship",
+                    command=confirm_remove
+                ).pack(pady=10)
+
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to remove relationship: {str(e)}")
+
+        ttk.Button(form_frame, text="Next", command=remove_relationship).pack(pady=10)
         ttk.Button(form_frame, text="Cancel", command=dialog.destroy).pack()
 
     def show_relationships(self, person, relationship_type):
@@ -1354,6 +1502,50 @@ class FamilyTreeGUI:
 
         # Initial calendar display
         update_calendar(current_month, current_year)
+
+    def remove_person_dialog(self):
+        """Dialog to remove a person from the family tree"""
+        if not self.selected_person:
+            messagebox.showerror("Error", "Please select a person first!")
+            return
+
+        # Check for dependencies (children)
+        if hasattr(self.selected_person, "children") and self.selected_person.children:
+            message = f"Cannot remove {self.selected_person.name}. You must first remove their children:\n\n"
+            for child in self.selected_person.children:
+                message += f"- {child.name}\n"
+            messagebox.showerror("Error", message)
+            return
+
+        # Confirm deletion
+        if not messagebox.askyesno(
+            "Confirm Removal",
+            f"Are you sure you want to remove {self.selected_person.name} from the family tree?\n\n"
+            "This will also remove all their relationships.",
+        ):
+            return
+
+        try:
+            # Remove all relationships first
+            self.stats.remove_all_relationships(self.selected_person)
+            
+            # Remove person from family
+            self.family.remove(self.selected_person)
+            
+            messagebox.showinfo(
+                "Success", 
+                f"{self.selected_person.name} has been removed from the family tree."
+            )
+            
+            # Reset selected person and refresh display
+            self.selected_person = None
+            self.refresh_family_list()
+            
+        except Exception as e:
+            messagebox.showerror(
+                "Error", 
+                f"Failed to remove {self.selected_person.name}: {str(e)}"
+            )
 
 
 if __name__ == "__main__":
