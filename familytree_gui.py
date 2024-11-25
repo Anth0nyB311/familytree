@@ -576,6 +576,16 @@ class FamilyTreeGUI:
             text="Average Children",
             command=lambda: self.show_statistics("Average Children"),
         ).pack(fill=tk.X)
+        ttk.Button(
+            content_frame,
+            text="Show Cousins",
+            command=lambda: self.show_statistics("Cousins"),
+        ).pack(fill=tk.X)
+        ttk.Button(
+            content_frame,
+            text="Sorted Birthdays",
+            command=lambda: self.show_statistics("Sorted Birthdays"),
+        ).pack(fill=tk.X)
 
         # Add Calendar section before Exit button
         ttk.Label(content_frame, text="Calendar", font=("Arial", 10, "bold")).pack(
@@ -923,7 +933,39 @@ class FamilyTreeGUI:
     def show_statistics(self, stat_type):
         """display any stats needed"""
         try:
-            if stat_type == "Children Count":
+            if stat_type == "Sorted Birthdays":
+                # Sort birthdays ignoring the year of birth
+                sorted_family = sorted(
+                    self.family,
+                    key=lambda member: (
+                        member.dob[5:],  # Sort by MM-DD
+                        member.dob[:4]   # Then by year
+                    ) if hasattr(member, "dob") and member.dob else "12-31"
+                )
+                
+                # Create message with sorted birthdays
+                message = "Birthdays (sorted by month & day):\n\n"
+                for person in sorted_family:
+                    if hasattr(person, "dob") and person.dob:
+                        date = person.dob[5:]  # Get MM-DD
+                        message += f"{date}: {person.name}\n"
+                
+                messagebox.showinfo("Sorted Birthdays", message)
+                
+            elif stat_type == "Cousins":
+                if not self.selected_person:
+                    messagebox.showerror("Error", "Please select a person first!")
+                    return
+                cousins = self.stats.get_cousins(self.selected_person)
+                if cousins:
+                    message = f"Cousins of {self.selected_person.name}:\n\n"
+                    for cousin in cousins:
+                        message += f"- {cousin.name}\n"
+                else:
+                    message = f"{self.selected_person.name} has no cousins recorded."
+                messagebox.showinfo("Cousins", message)
+            
+            elif stat_type == "Children Count":
                 message = "Individual Child Count:\n\n"
                 for person in self.family:
                     if hasattr(person, "children") and person.children:
@@ -973,6 +1015,13 @@ class FamilyTreeGUI:
                     messagebox.showinfo(
                         "Statistics", "No people found in the family tree"
                     )
+
+            elif stat_type == "Show Cousins":
+                cousins = self.stats.display_cousins()
+                message = "Cousins:\n\n"
+                for cousin in cousins:
+                    message += f"- {cousin.name}\n"
+                messagebox.showinfo("Cousins", message)
 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to calculate {stat_type}: {str(e)}")
